@@ -35,6 +35,8 @@ describe("validateTopic", () => {
     expect(validateTopic("aaaaaaaa")).toBe("repetitive");
     expect(validateTopic("kkkk")).toBe("repetitive");
     expect(validateTopic("kkk")).toBe("repetitive");
+    expect(validateTopic("سسسسسسسسسس")).toBe("repetitive");
+    expect(validateTopic("ســـسســـسس")).toBe("repetitive");
     expect(validateTopic("asdasdasd")).toBe("repetitive");
     expect(validateTopic("qwerty stuff")).toBe("keyboard_mash");
     expect(validateTopic("hjkl;lkjhg")).toBe("keyboard_mash");

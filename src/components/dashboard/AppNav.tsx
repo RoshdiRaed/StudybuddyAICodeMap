@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Library as LibraryIcon,
@@ -8,18 +8,15 @@ import {
   Layers,
   FlaskConical,
   Settings,
-  LogOut,
   LogIn,
-  Sparkles,
   Menu,
   X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
+import { displayName } from "@/lib/display-name";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
-import GoProModal from "@/components/GoProModal";
 import BrandMark from "@/components/brand/BrandMark";
 
 interface ProfileRow {
@@ -34,8 +31,8 @@ interface AppNavProps {
 }
 
 const navItems = [
-  { to: "/", label: "Home", icon: LayoutDashboard },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  // Home is the student's dashboard; the brand goes back to the landing page.
+  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
   { to: "/roadmap", label: "Topics", icon: MapIcon },
   { to: "/sheets", label: "Sheets", icon: FileText },
   { to: "/flashcards", label: "Flashcards", icon: Layers },
@@ -44,12 +41,10 @@ const navItems = [
 ];
 
 const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
-  const { user, isAnonymous, signOut } = useAuth();
-  const { toast } = useToast();
+  const { user, isAnonymous } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [goProOpen, setGoProOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const name = displayName(user);
 
   const userId = user?.id ?? null;
   const profileQuery = useQuery({
@@ -70,17 +65,6 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
     profile?.is_pro === true &&
     (profile.pro_expires_at === null ||
       new Date(profile.pro_expires_at) > new Date());
-
-  const handleSignOut = async () => {
-    const { error } = await signOut();
-    if (error) {
-      toast({ title: "Sign out failed", description: error, variant: "destructive" });
-    } else {
-      toast({ title: "Signed out" });
-      navigate("/dashboard");
-    }
-    setMobileOpen(false);
-  };
 
   const handleNav = () => {
     setMobileOpen(false);
@@ -111,7 +95,7 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
         >
           {/* Brand */}
           <Link
-            to="/dashboard"
+            to="/"
             onClick={handleNav}
             className="flex items-center gap-2.5 shrink-0 no-underline"
             style={{ color: "var(--fg)" }}
@@ -201,123 +185,49 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
               </span>
             )}
 
-            {!isPro && !isAnonymous && user && (
-              <button
-                onClick={() => setGoProOpen(true)}
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  padding: "9px 14px",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid var(--border-strong)",
-                  background: "transparent",
-                  color: "var(--fg)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition:
-                    "background var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-panel)";
-                  e.currentTarget.style.borderColor = "var(--fg)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor = "var(--border-strong)";
-                }}
-              >
-                <Sparkles style={{ width: 14, height: 14 }} />
-                Go Pro
-              </button>
-            )}
-
-            {!isAnonymous && user && (
+            {isAnonymous || !user ? (
+              <>
+                <button
+                  onClick={onOpenAuth}
+                  style={{
+                    fontFamily: "var(--font-sans)",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    padding: "9px 14px",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid transparent",
+                    background: "var(--fg)",
+                    color: "var(--bg)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <LogIn style={{ width: 14, height: 14 }} />
+                  Sign in
+                </button>
+                <ThemeToggle />
+              </>
+            ) : (
+              // One account button: Go Pro, theme and sign out live in Settings.
               <button
                 onClick={onOpenAccount}
                 title="Settings"
-                aria-label="Settings"
-                style={{
-                  width: 36,
-                  height: 36,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "transparent",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: "var(--radius-pill)",
-                  cursor: "pointer",
-                  color: "var(--fg)",
-                  transition:
-                    "background var(--dur-micro) var(--ease-out), border-color var(--dur-micro) var(--ease-out)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-panel)";
-                  e.currentTarget.style.borderColor = "var(--fg)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.borderColor = "var(--border-strong)";
-                }}
+                className="inline-flex h-9 items-center gap-2 rounded-full border border-border ps-1 pe-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
               >
-                <Settings style={{ width: 16, height: 16 }} />
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-primary text-xs font-semibold uppercase text-primary-foreground">
+                  {name.charAt(0)}
+                </span>
+                <span className="max-w-[140px] truncate">{name}</span>
+                <Settings style={{ width: 14, height: 14 }} className="text-muted-foreground" />
               </button>
             )}
-
-            {isAnonymous || !user ? (
-              <button
-                onClick={onOpenAuth}
-                style={{
-                  fontFamily: "var(--font-sans)",
-                  fontSize: 14,
-                  fontWeight: 500,
-                  padding: "9px 14px",
-                  borderRadius: "var(--radius-md)",
-                  border: "1px solid transparent",
-                  background: "var(--fg)",
-                  color: "var(--bg)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <LogIn style={{ width: 14, height: 14 }} />
-                Sign in
-              </button>
-            ) : (
-              <button
-                onClick={handleSignOut}
-                title="Sign out"
-                aria-label="Sign out"
-                style={{
-                  width: 36,
-                  height: 36,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "transparent",
-                  border: "1px solid var(--border-strong)",
-                  borderRadius: "var(--radius-pill)",
-                  cursor: "pointer",
-                  color: "var(--fg-muted)",
-                  transition: "color var(--dur-micro) var(--ease-out)",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--fg)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--fg-muted)")}
-              >
-                <LogOut style={{ width: 16, height: 16 }} />
-              </button>
-            )}
-
-            <ThemeToggle />
           </div>
 
           {/* Mobile actions */}
           <div className="flex lg:hidden items-center gap-2">
-            <ThemeToggle />
+            {(isAnonymous || !user) && <ThemeToggle />}
             <button
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? "Close menu" : "Open menu"}
@@ -385,84 +295,16 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
               })}
 
               <div style={{ display: "flex", gap: 8, padding: "12px 0 4px" }}>
-                {!isPro && !isAnonymous && user && (
-                  <button
-                    onClick={() => {
-                      setGoProOpen(true);
-                      setMobileOpen(false);
-                    }}
-                    style={{
-                      flex: 1,
-                      fontFamily: "var(--font-sans)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      padding: "10px 0",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--border-strong)",
-                      background: "transparent",
-                      color: "var(--fg)",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Sparkles style={{ width: 14, height: 14 }} />
-                    Go Pro
-                  </button>
-                )}
-
-                {!isAnonymous && user && (
+                {!isAnonymous && user ? (
                   <button
                     onClick={() => {
                       onOpenAccount();
                       setMobileOpen(false);
                     }}
-                    style={{
-                      flex: 1,
-                      fontFamily: "var(--font-sans)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      padding: "10px 0",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--border-strong)",
-                      background: "transparent",
-                      color: "var(--fg)",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border border-border text-sm font-medium text-foreground"
                   >
                     <Settings style={{ width: 14, height: 14 }} />
-                    Settings
-                  </button>
-                )}
-
-                {!isAnonymous && user ? (
-                  <button
-                    onClick={handleSignOut}
-                    style={{
-                      flex: 1,
-                      fontFamily: "var(--font-sans)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      padding: "10px 0",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid var(--border-strong)",
-                      background: "transparent",
-                      color: "var(--fg-muted)",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <LogOut style={{ width: 14, height: 14 }} />
-                    Sign out
+                    Settings · {name}
                   </button>
                 ) : (
                   <button
@@ -470,22 +312,7 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
                       onOpenAuth();
                       setMobileOpen(false);
                     }}
-                    style={{
-                      flex: 1,
-                      fontFamily: "var(--font-sans)",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      padding: "10px 0",
-                      borderRadius: "var(--radius-md)",
-                      border: "1px solid transparent",
-                      background: "var(--fg)",
-                      color: "var(--bg)",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
+                    className="flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-foreground text-sm font-medium text-background"
                   >
                     <LogIn style={{ width: 14, height: 14 }} />
                     Sign in
@@ -497,7 +324,6 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
         )}
       </header>
 
-      <GoProModal open={goProOpen} onOpenChange={setGoProOpen} />
     </>
   );
 };

@@ -177,8 +177,10 @@ const DIFFICULTY_ROWS: { key: Difficulty; tone: string }[] = [
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { isAnonymous, user } = useAuth();
-  const isGuest = !user || isAnonymous;
+  const { isAnonymous, user, loading: authLoading } = useAuth();
+  // Not while the session is still being read: a signed-in student would see
+  // the guest prompt flash before their progress.
+  const isGuest = !authLoading && (!user || isAnonymous);
   const [detail, setDetail] = useState<Detail>(null);
   const [authOpen, setAuthOpen] = useState(false);
 

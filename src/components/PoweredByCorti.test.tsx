@@ -23,14 +23,13 @@ describe("ModelCredit", () => {
 
   it("tells the student when a premium request fell back from Corti", () => {
     render(<ModelCredit used={used("claude", true)} />);
-    expect(screen.getByRole("note")).toHaveTextContent("Claude Haiku 4.5 · Corti unavailable");
+    expect(screen.getByRole("note")).toHaveTextContent("Backup model · Corti unavailable");
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("names the free-tier model without the Corti credit", () => {
-    render(<ModelCredit used={used("gpt-oss")} />);
-    expect(screen.getByText("GPT-OSS 20B")).toBeInTheDocument();
-    expect(screen.queryByRole("link")).toBeNull();
+  it("never names the free-tier model", () => {
+    const { container } = render(<ModelCredit used={used("gpt-oss")} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("renders nothing for an unknown or missing model", () => {

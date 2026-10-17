@@ -1,3 +1,4 @@
+import { POPULAR_TOPICS } from "@/lib/popular-topics";
 import { useState, useEffect, useId, useRef } from "react";
 import { AlertCircle, ArrowRight, Check, ChevronRight, History, Loader2, Search, Sparkles, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -44,16 +45,9 @@ interface FlashcardsGeneratorProps {
 const RECENT_FLASHCARD_TOPICS_KEY = "sb_recent_flashcard_topics_v1";
 
 // A monogram rather than an icon: the abbreviation is what a student actually
-// calls the topic on the wards, and six near-identical line glyphs (two of them
-// the same Activity icon) said nothing about which was which.
-const POPULAR_TOPICS = [
-  { label: "Myocardial Infarction", short: "MI", category: "Cardiology" },
-  { label: "Pneumonia", short: "PN", category: "Pulmonology" },
-  { label: "Diabetic Ketoacidosis", short: "DKA", category: "Endocrinology" },
-  { label: "Ischemic Stroke", short: "CVA", category: "Neurology" },
-  { label: "Nephrotic Syndrome", short: "NS", category: "Nephrology" },
-  { label: "Sepsis", short: "SEP", category: "Critical Care" },
-] as const;
+// calls the topic on the wards. The list is shared with Sheets and drawn from
+// the Topics page (src/lib/popular-topics.ts).
+const POPULAR = POPULAR_TOPICS.filter((t) => t.short !== "HF");
 
 // The edge function clamps a deck to 3-20 cards (medical-notes-prompts.ts), so
 // the old 30-card option silently produced 20.
@@ -224,6 +218,12 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
     onGeneratingChange?.(generating, t);
   };
 
+  /** The topic was turned away: say why, by the box and as a pop-up the student can't miss. */
+  const declineTopic = (reason: string, title = "Not a medical topic") => {
+    setTopicError(reason);
+    toast({ title, description: reason, variant: "destructive" });
+  };
+
   const handleGenerate = async (overrideTopic?: string, overrideCardCount?: number) => {
     const activeTopic = overrideTopic ?? topic;
     const activeCardCount = overrideCardCount ?? parseInt(cardCount, 10);
@@ -269,7 +269,7 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
         const err = await response.json().catch(() => ({}));
         if (response.status === 400 && err.code === "invalid_topic") {
           setGenerating(false, "");
-          setTopicError(err.error || topicRejectionMessage("keyboard_mash"));
+          declineTopic(err.error || topicRejectionMessage("keyboard_mash"));
           return;
         }
         if (response.status === 429) {
@@ -348,13 +348,24 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
       if (declined) {
         setGenerating(false, "");
         setLoadingMsg("");
-        setTopicError(declined);
+        declineTopic(declined);
         refreshUsage();
         return;
       }
 
-      recordRecentTopic(activeTopic);
       const parsed = parseFlashcardsFromOutput(fullText, activeTopic);
+      // Nothing usable came back: say so, and don't keep it as a recent topic.
+      if (parsed.length === 0) {
+        setGenerating(false, "");
+        setLoadingMsg("");
+        declineTopic(
+          "No cards could be written for that topic. Check the spelling, or try a medical topic like “heart failure”.",
+          "No cards were written"
+        );
+        refreshUsage();
+        return;
+      }
+      recordRecentTopic(activeTopic);
 
       // Retrieval is the ceiling; the per-card [Grounded]/[General] tags decide
       // whether that ceiling was actually reached. No __meta at all means the
@@ -664,7 +675,7 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
             ✦ {premiumRemaining} Corti generation{premiumRemaining !== 1 ? "s" : ""} left
           </p>
         )}
-        {lastDeckModel && lastDeckModel.kind !== "unknown" && (
+        {lastDeckModel && lastDeckModel.kind === "corti" && (
           <div className="flex items-center justify-center gap-2">
             <span>Last deck written by</span>
             <ModelCredit used={lastDeckModel} compact />
@@ -678,14 +689,15 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
           Popular topics
         </h2>
         <ul className={`mt-4 grid gap-3 ${wide ? "sm:grid-cols-2 lg:grid-cols-3" : ""}`}>
-          {POPULAR_TOPICS.map(({ label, short, category }, i) => {
-            const picked = trimmedTopic.toLowerCase() === label.toLowerCase();
+          {POPULAR.map(({ label, short, topic: value, system }, i) => {
+            const picked = trimmedTopic.toLowerCase() === value.toLowerCase();
             return (
               <li key={label}>
                 <button
                   type="button"
                   onClick={() => {
-                    setTopic(label);
+                    // Select, or deselect when it is already the topic.
+                    setTopic(picked ? "" : value);
                     setTopicError(null);
                   }}
                   aria-pressed={picked}
@@ -707,7 +719,7 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, w
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{label}</span>
-                    <span className="block text-xs text-muted-foreground">{category}</span>
+                    <span className="block text-xs text-muted-foreground">{system}</span>
                   </span>
                   <ChevronRight
                     className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground rtl:rotate-180"

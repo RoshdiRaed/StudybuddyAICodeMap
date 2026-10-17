@@ -1,3 +1,5 @@
+import { cleanUsername, USERNAME_MAX } from "@/lib/display-name";
+import { friendlyAuthError } from "@/lib/auth-errors";
 import { useEffect, useState } from "react";
 import {
   Dialog,
@@ -20,9 +22,16 @@ import { useAuth } from "@/hooks/use-auth";
 interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Runs once the student is signed in (or verified), e.g. to continue where they were headed. */
+  onSignedIn?: () => void;
+  /** One line above the form saying why sign-in is needed here. */
+  reason?: string;
 }
 
-const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
+/** Seconds before a new code can be requested. */
+const RESEND_COOLDOWN_S = 60;
+
+const AuthModal = ({ open, onOpenChange, onSignedIn, reason }: AuthModalProps) => {
   const { signIn, signUp, signInWithGoogle, resetPasswordForEmail, verifyOtp, resendSignUpOtp, isAnonymous } =
     useAuth();
   const { toast } = useToast();
@@ -38,7 +47,9 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
   const [signInLoading, setSignInLoading] = useState(false);
 
   const [signUpEmail, setSignUpEmail] = useState("");
+  const [signUpUsername, setSignUpUsername] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
+  const [signUpConfirm, setSignUpConfirm] = useState("");
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [signUpLoading, setSignUpLoading] = useState(false);
 
@@ -92,7 +103,7 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     const { error } = await signInWithGoogle();
     if (error) {
       setGoogleLoading(false);
-      setGoogleError(error);
+      setGoogleError(friendlyAuthError(error));
       return;
     }
     // On success the browser is navigating to Google; leave the spinner up
@@ -113,6 +124,7 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setSignInEmail("");
     setSignInPassword("");
     onOpenChange(false);
+    onSignedIn?.();
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
@@ -131,8 +143,16 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setSignUpError(null);
+    if (signUpPassword !== signUpConfirm) {
+      setSignUpError("The passwords don't match. Type the same password in both fields.");
+      return;
+    }
     setSignUpLoading(true);
-    const { error, needsVerification, email } = await signUp(signUpEmail, signUpPassword);
+    const { error, needsVerification, email } = await signUp(
+      signUpEmail,
+      signUpPassword,
+      cleanUsername(signUpUsername)
+    );
     setSignUpLoading(false);
     if (error) {
       setSignUpError(error);
@@ -141,6 +161,8 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     if (needsVerification) {
       setPendingVerification(true);
       setPendingEmail(email ?? signUpEmail);
+      // A code was just sent: the next one can be asked for after the cooldown.
+      setResendCooldown(RESEND_COOLDOWN_S);
       setOtpType(isAnonymous ? "email_change" : "signup");
       // The typed password lives here from the form step through the OTP step,
       // where verifyOtp applies it once the user is no longer anonymous. In
@@ -149,7 +171,9 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
       toast({ title: "Account created" });
       setSignUpEmail("");
       setSignUpPassword("");
+      setSignUpConfirm("");
       onOpenChange(false);
+      onSignedIn?.();
     }
   };
 
@@ -173,18 +197,23 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setOtpCode("");
     setSignUpEmail("");
     setSignUpPassword("");
+    setSignUpConfirm("");
     onOpenChange(false);
+    onSignedIn?.();
   };
 
   const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
     setOtpError(null);
+    // Start the cooldown before the request, so a second click can't send twice.
+    setResendCooldown(RESEND_COOLDOWN_S);
     const { error } = await resendSignUpOtp(pendingEmail, otpType);
     if (error) {
       setOtpError(error);
+      setResendCooldown(0);
       return;
     }
-    setResendCooldown(60);
-    toast({ title: "Code resent" });
+    toast({ title: "A new code is on its way", description: `Sent to ${pendingEmail}. Check your spam folder too.` });
   };
 
   const goBackFromVerification = () => {
@@ -202,7 +231,7 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
           <BrandMark size={44} className="mx-auto mb-1 sm:mx-0" />
           <DialogTitle className="text-lg font-semibold tracking-tight">Welcome</DialogTitle>
           <DialogDescription>
-            Sign in or create an account to get started.
+            {reason ?? "Sign in or create an account to get started."}
           </DialogDescription>
         </DialogHeader>
 
@@ -224,7 +253,10 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="h-4 w-4 shrink-0" />
-              <p>We sent a 6-digit code to <span className="font-medium">{pendingEmail}</span></p>
+              <p>
+                We sent a 6-digit code to <span className="font-medium">{pendingEmail}</span>. Enter it below to
+                confirm this email is yours.
+              </p>
             </div>
 
             <form onSubmit={handleVerifyOtp} className="space-y-4">
@@ -426,6 +458,20 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="signup-username">
+                      Username <span className="font-normal text-muted-foreground">(optional)</span>
+                    </Label>
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      autoComplete="nickname"
+                      value={signUpUsername}
+                      onChange={(e) => setSignUpUsername(e.target.value)}
+                      maxLength={USERNAME_MAX}
+                      placeholder="Taken from your email if left empty"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <Input
                       id="signup-password"
@@ -436,6 +482,25 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
                       required
                       minLength={6}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirm">Confirm password</Label>
+                    <Input
+                      id="signup-confirm"
+                      type="password"
+                      autoComplete="new-password"
+                      value={signUpConfirm}
+                      onChange={(e) => {
+                        setSignUpConfirm(e.target.value);
+                        if (signUpError) setSignUpError(null);
+                      }}
+                      aria-invalid={signUpConfirm.length > 0 && signUpConfirm !== signUpPassword ? true : undefined}
+                      required
+                      minLength={6}
+                    />
+                    {signUpConfirm.length > 0 && signUpConfirm !== signUpPassword && (
+                      <p className="text-xs text-destructive">The passwords don't match yet.</p>
+                    )}
                   </div>
                   {signUpError && (
                     <p className="text-sm text-destructive">{signUpError}</p>

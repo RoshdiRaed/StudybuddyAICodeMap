@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import CitationCTABanner from "@/components/CitationCTABanner";
 import { useStudyHistory, type StudyHistoryItem } from "@/hooks/use-study-history";
 import { timeAgo } from "@/lib/utils";
+import { POPULAR_TOPICS } from "@/lib/popular-topics";
 
 /**
  * The page before there is a sheet: one box to name a topic, its settings as
@@ -27,22 +28,25 @@ import { timeAgo } from "@/lib/utils";
  * This used to be spread over three places — a page header with its own topic
  * chips, a settings column, and an empty state with a third topic grid — and
  * the three pickers each did something different on a tap. There is one list
- * now, and a tap always does the same thing: write the topic in and generate.
+ * now, and a tap always does the same thing: put the topic in the box (a
+ * second tap takes it out). Generating is always the Generate button, so the
+ * settings can be changed first.
  */
 
-/**
- * Starting points, chosen to show what the sheet can be rather than six
- * diseases: a drug and a pathway come out with comparison tables, the
- * conditions with a clinical approach.
- */
-const SUGGESTED_TOPICS = [
-  { label: "Heart Failure", icon: HeartPulse },
-  { label: "Diabetic Ketoacidosis", icon: Brain },
-  { label: "Warfarin", icon: Pill },
-  { label: "Urea Cycle", icon: FlaskConical },
-  { label: "Community-Acquired Pneumonia", icon: Activity },
-  { label: "Ischemic Stroke", icon: BrainCircuit },
-] as const;
+/** Starting points: the shared popular topics, each with an icon for its system. */
+const SYSTEM_ICONS: Record<string, typeof HeartPulse> = {
+  Cardiovascular: HeartPulse,
+  Respiratory: Activity,
+  Endocrinology: Brain,
+  Neurology: BrainCircuit,
+  "Renal & Urinary": FlaskConical,
+  "Infectious Disease": Pill,
+};
+const SUGGESTED_TOPICS = POPULAR_TOPICS.slice(0, 6).map((t) => ({
+  label: t.label,
+  topic: t.topic,
+  icon: SYSTEM_ICONS[t.system] ?? Activity,
+}));
 
 const HOW_IT_WORKS = [
   {
@@ -63,13 +67,15 @@ const HOW_IT_WORKS = [
 ] as const;
 
 const CHIP_CLASS =
-  "inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground transition-colors duration-200 hover:border-primary/60 hover:text-primary disabled:cursor-default disabled:opacity-50";
+  "inline-flex h-8 max-w-full items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors duration-200 disabled:cursor-default disabled:opacity-50";
+const CHIP_OFF = "border-border bg-card text-foreground hover:border-primary/60 hover:text-primary";
+const CHIP_ON = "border-primary bg-primary text-primary-foreground";
 
 interface SheetComposerProps {
   notes: string;
   onNotesChange: (value: string) => void;
-  /** Generate from the box, or from a topic picked below it. */
-  onGenerate: (topic?: string) => void;
+  /** Generate from the box. */
+  onGenerate: () => void;
   loading: boolean;
   /** The settings row; the generator owns their state. */
   settings: ReactNode;
@@ -95,12 +101,16 @@ const SheetComposer = ({
 }: SheetComposerProps) => {
   const { history, isLoading: historyLoading } = useStudyHistory();
   const saved = history.slice(0, 4);
-  const suggestionLabels = new Set(SUGGESTED_TOPICS.map((t) => t.label.toLowerCase()));
-  const recent = recentTopics.filter((t) => !suggestionLabels.has(t.toLowerCase())).slice(0, 4);
+  // Every topic generated lately, suggestions included — a sheet started from
+  // "Heart Failure" used to be filtered out of Recent for being a suggestion.
+  const recent = recentTopics.slice(0, 4);
   // Someone who has never generated or saved a sheet gets the three-step
   // explainer; anyone else already knows the flow.
   const firstVisit = !historyLoading && history.length === 0 && recentTopics.length === 0;
   const canGenerate = !loading && notes.trim().length > 0;
+  const picked = notes.trim().toLowerCase();
+  // Select, or deselect when it is already the topic. No scroll, no generate.
+  const toggleTopic = (label: string) => onNotesChange(picked === label.toLowerCase() ? "" : label);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-8">
@@ -195,8 +205,9 @@ const SheetComposer = ({
                 key={topic}
                 type="button"
                 disabled={loading}
-                onClick={() => onGenerate(topic)}
-                className={CHIP_CLASS}
+                aria-pressed={picked === topic.toLowerCase()}
+                onClick={() => toggleTopic(topic)}
+                className={`${CHIP_CLASS} ${picked === topic.toLowerCase() ? CHIP_ON : CHIP_OFF}`}
               >
                 <span className="truncate">{topic}</span>
               </button>
@@ -205,17 +216,21 @@ const SheetComposer = ({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-            Try
+            Try a topic
           </span>
-          {SUGGESTED_TOPICS.map(({ label, icon: Icon }) => (
+          {SUGGESTED_TOPICS.map(({ label, topic, icon: Icon }) => (
             <button
               key={label}
               type="button"
               disabled={loading}
-              onClick={() => onGenerate(label)}
-              className={CHIP_CLASS}
+              aria-pressed={picked === topic.toLowerCase()}
+              onClick={() => toggleTopic(topic)}
+              className={`${CHIP_CLASS} ${picked === topic.toLowerCase() ? CHIP_ON : CHIP_OFF}`}
             >
-              <Icon className="h-3.5 w-3.5 text-[color:var(--color-accent)]" strokeWidth={2.2} />
+              <Icon
+                className={`h-3.5 w-3.5 ${picked === topic.toLowerCase() ? "" : "text-[color:var(--color-accent)]"}`}
+                strokeWidth={2.2}
+              />
               {label}
             </button>
           ))}
@@ -257,28 +272,24 @@ const SheetComposer = ({
         </section>
       )}
 
+      {/* Three steps on one compact row — a reminder, not a section. */}
       {firstVisit && (
-        <section aria-label="How it works" className="animate-fade-in grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ol aria-label="How it works" className="animate-fade-in flex flex-col gap-2 sm:flex-row sm:gap-3">
           {HOW_IT_WORKS.map(({ title, description, icon: Icon }, index) => (
-            <div
+            <li
               key={title}
-              className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)] p-4"
+              title={description}
+              className="flex flex-1 items-center gap-2.5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-card)] px-3 py-2.5"
             >
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color:var(--color-foreground)] text-[color:var(--color-accent)]">
-                <Icon className="h-4 w-4" strokeWidth={2.2} />
-                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--color-accent)] text-[9px] font-bold text-[color:var(--color-background)]">
-                  {index + 1}
-                </span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[color:var(--color-foreground)] text-[color:var(--color-accent)]">
+                <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">{title}</span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                  {description}
-                </span>
+              <span className="text-xs font-semibold text-foreground">
+                {index + 1}. {title}
               </span>
-            </div>
+            </li>
           ))}
-        </section>
+        </ol>
       )}
     </div>
   );

@@ -71,7 +71,8 @@ export function validateTopic(raw: unknown): TopicRejection | null {
   if (text.length > TOPIC_MAX_LENGTH) return "too_long";
   if (MARKUP_RE.test(text)) return "markup";
   if (!LETTER_RE.test(text)) return "no_letters";
-  const compact = text.toLowerCase().replace(/\s+/g, "");
+  // Tatweel (U+0640) only stretches Arabic letters, so "ســـــس" is "سس".
+  const compact = text.toLowerCase().replace(/[\s\u0640]+/g, "");
   if (isRepetitive(compact)) return "repetitive";
   if (isKeyboardMash(compact)) return "keyboard_mash";
   return null;

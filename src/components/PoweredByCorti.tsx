@@ -65,24 +65,18 @@ export const CortiFallbackNotice = ({ used }: { used: ModelUsed }) => (
     }}
   >
     <TriangleAlert aria-hidden="true" style={{ width: 11, height: 11 }} />
-    <span>{modelLabel(used.kind)} · Corti unavailable</span>
+    <span>Backup model · Corti unavailable</span>
   </span>
 );
 
 /**
- * The right credit for a response: Corti's badge, the fallback notice, or a
- * plain model name for the free tier. Renders nothing when the model is unknown.
+ * The right credit for a response: Corti's badge, or the fallback notice.
+ * The free-tier model is never named — the student can't choose it, so its
+ * name told them nothing. Renders nothing for it, or when the model is unknown.
  */
 export const ModelCredit = ({ used, compact = false }: { used: ModelUsed | null | undefined; compact?: boolean }) => {
   if (!used || used.kind === "unknown") return null;
   if (used.fallback) return <CortiFallbackNotice used={used} />;
   if (used.kind === "corti") return <PoweredByCorti compact={compact} />;
-  return (
-    <span
-      title="Free tier model. Go Pro for Corti S1, built for healthcare."
-      style={{ ...pill, border: "1px solid var(--border-strong)", background: "var(--bg)", color: "var(--fg-muted)" }}
-    >
-      {modelLabel(used.kind)}
-    </span>
-  );
+  return null;
 };

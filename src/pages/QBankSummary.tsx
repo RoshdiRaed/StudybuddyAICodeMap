@@ -426,10 +426,12 @@ const QBankSummary = () => {
       // Nothing to fall back on — always the case for a timed set, which has no
       // grades in memory. Say so, rather than dropping the student on /qbank.
       if (sessionId) {
+        // The raw error goes to the console, never to the student.
+        if (reviewError) console.error("get_session_review failed:", reviewError);
         setLoadError(
-          reviewError?.includes("session_not_found")
+          reviewError?.includes("session_not_found") || reviewError?.includes("invalid input syntax")
             ? "These results don't exist, or they belong to another account."
-            : reviewError ?? "The results could not be loaded."
+            : "Something went wrong while loading your results. Please try again."
         );
         setLoading(false);
         return;

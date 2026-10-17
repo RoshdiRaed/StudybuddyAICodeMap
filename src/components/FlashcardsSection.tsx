@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
 import type { Flashcard } from "@/types/generated-sheet";
@@ -71,8 +71,11 @@ function FlipCard({
   tag?: string;
   forceShow: boolean;
 }) {
-  const [revealed, setRevealed] = useState(false);
-  const isOpen = forceShow || revealed;
+  const [revealed, setRevealed] = useState(forceShow);
+  // Show All / Hide All sets every card, including ones opened or closed by
+  // hand — each card then toggles on its own again from there.
+  useEffect(() => setRevealed(forceShow), [forceShow]);
+  const isOpen = revealed;
 
   return (
     <div

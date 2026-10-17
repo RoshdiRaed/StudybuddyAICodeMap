@@ -10,7 +10,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Loader2, LogOut, Moon, Sparkles, Sun } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import GoProModal from "@/components/GoProModal";
+import { useTheme } from "@/hooks/use-theme";
+import { cleanUsername, displayName, USERNAME_MAX } from "@/lib/display-name";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,10 +50,49 @@ const formatDate = (iso: string) => {
 };
 
 const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
   const userId = user?.id ?? null;
+
+  const [goProOpen, setGoProOpen] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const currentName = displayName(user);
+  const nameDraft = username ?? currentName;
+
+  const saveUsername = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = cleanUsername(nameDraft);
+    if (!clean) {
+      setNameError("Use at least 2 characters.");
+      return;
+    }
+    setNameSaving(true);
+    setNameError(null);
+    const { error } = await supabase.auth.updateUser({ data: { username: clean } });
+    setNameSaving(false);
+    if (error) {
+      setNameError("Couldn't save your username. Please try again.");
+      return;
+    }
+    setUsername(null);
+    toast({ title: "Username saved" });
+  };
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast({ title: "Sign out failed", description: "Please try again.", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Signed out" });
+    onOpenChange(false);
+    navigate("/dashboard");
+  };
 
   const [code, setCode] = useState("");
   const [redeemError, setRedeemError] = useState<string | null>(null);
@@ -83,7 +127,7 @@ const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
         code_input: code,
       });
       if (error) {
-        setRedeemError(error.message);
+        setRedeemError("Couldn't check that code. Please try again.");
         return;
       }
       const result = data as {
@@ -113,13 +157,39 @@ const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Account</DialogTitle>
+          <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
-            Manage your account and subscription.
+            Your name, plan and preferences.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
+          <form onSubmit={saveUsername} className="space-y-2">
+            <Label htmlFor="settings-username" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Username
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="settings-username"
+                value={nameDraft}
+                maxLength={USERNAME_MAX}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setNameError(null);
+                }}
+                disabled={nameSaving}
+              />
+              <Button type="submit" variant="outline" disabled={nameSaving || nameDraft.trim() === currentName}>
+                {nameSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              </Button>
+            </div>
+            {nameError ? (
+              <p className="text-sm text-destructive">{nameError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Shown in the app. Only you can see it.</p>
+            )}
+          </form>
+
           <div className="space-y-1">
             <p style={{
               fontFamily: "var(--font-mono)",
@@ -175,7 +245,12 @@ const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
                 )}
               </div>
             ) : (
-              <span style={{ fontSize: 13, color: "var(--fg)" }}>Free plan</span>
+              <div className="flex items-center justify-between gap-3">
+                <span style={{ fontSize: 13, color: "var(--fg)" }}>Free plan</span>
+                <Button type="button" size="sm" onClick={() => setGoProOpen(true)} className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Go Pro
+                </Button>
+              </div>
             )}
           </div>
 
@@ -193,8 +268,11 @@ const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
                 marginBottom: 4,
               }}
             >
-              Redeem code
+              Pro access code
             </Label>
+            <p className="text-xs text-muted-foreground">
+              Have a Pro access code from StudyBuddy? Enter it here to unlock Pro on this account.
+            </p>
             <div className="flex gap-2">
               <Input
                 id="redeem-code"
@@ -229,7 +307,19 @@ const AccountDashboard = ({ open, onOpenChange }: AccountDashboardProps) => {
               <p className="text-sm text-destructive">{redeemError}</p>
             )}
           </form>
+
+          <div className="flex items-center justify-between gap-3 border-t border-border/50 pt-4">
+            <Label htmlFor="settings-theme" className="flex items-center gap-2 text-sm font-medium">
+              {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />} Dark theme
+            </Label>
+            <Switch id="settings-theme" checked={isDark} onCheckedChange={toggleTheme} />
+          </div>
+
+          <Button type="button" variant="outline" onClick={handleSignOut} className="w-full gap-2">
+            <LogOut className="h-4 w-4" /> Sign out
+          </Button>
         </div>
+        <GoProModal open={goProOpen} onOpenChange={setGoProOpen} />
       </DialogContent>
     </Dialog>
   );

@@ -129,7 +129,20 @@ export function useStudyHistory() {
     async (input: string, output: string, modeInfo?: ModeInfo): Promise<string> => {
       const topic = extractTopic(input);
 
+      // The same sheet saved twice is one sheet: hand back the row that holds
+      // it, so the Library count only moves when something new is saved.
       if (useServer) {
+        const { data: existing, error: findError } = await supabase
+          .from("study_history")
+          .select("id, output")
+          .eq("user_id", userId!)
+          .eq("input", input)
+          .order("created_at", { ascending: false })
+          .limit(10);
+        if (findError) throw findError;
+        const same = (existing ?? []).find((row) => row.output === output);
+        if (same) return same.id;
+
         const { data, error } = await supabase
           .from("study_history")
           .insert({
@@ -155,6 +168,8 @@ export function useStudyHistory() {
       }
 
       const current = loadLocal();
+      const same = current.find((h) => h.input === input && h.output === output);
+      if (same) return same.id;
       const item: StudyHistoryItem = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         topic,

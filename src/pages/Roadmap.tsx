@@ -1,6 +1,6 @@
 import { validateTopic } from "@/lib/validate-topic";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Compass, Layers, Search, X } from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -71,10 +71,36 @@ const STATE_STYLE: Record<TopicState, { emoji: string; label: string }> = {
   untouched: { emoji: "⚪", label: "Not started" },
 };
 
+const SCROLL_KEY = "sb_roadmap_scroll";
+
+/** A system name as it appears in the URL: "Renal & Urinary" → "renal-urinary". */
+const slug = (system: string) =>
+  system.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
 const Roadmap = () => {
   const navigate = useNavigate();
-  const [activeSystem, setActiveSystem] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
+  // The selected system and the search live in the URL
+  // (/roadmap?system=respiratory&q=asthma), so Back from a topic, a refresh
+  // or a shared link all come back to the same view.
+  const [params, setParams] = useSearchParams();
+  const systemParam = params.get("system");
+  const query = params.get("q") ?? "";
+  const setQuery = (value: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("q", value);
+        else next.delete("q");
+        return next;
+      },
+      { replace: true }
+    );
+  const setActiveSystem = (system: string) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("system", slug(system));
+      return next;
+    });
 
   const topicsQuery = useQuery({
     queryKey: ["curriculum-topics"],
@@ -100,11 +126,23 @@ const Roadmap = () => {
   );
   const progress = useCurriculumProgress(allTitles);
 
-  // Select the first system once the data lands, so the detail pane is never
-  // an empty frame waiting on a click.
+  // The system in the URL, else the first — the detail pane is never an
+  // empty frame waiting on a click.
+  const activeSystem =
+    sections.find((s) => slug(s.system) === systemParam)?.system ?? sections[0]?.system ?? null;
+
+  // Back from a topic lands where the student was on the page.
   useEffect(() => {
-    if (!activeSystem && sections.length) setActiveSystem(sections[0].system);
-  }, [sections, activeSystem]);
+    if (!sections.length) return;
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(SCROLL_KEY);
+      sessionStorage.removeItem(SCROLL_KEY);
+    } catch {
+      // storage unavailable: start at the top
+    }
+    if (saved) window.requestAnimationFrame(() => window.scrollTo(0, Number(saved) || 0));
+  }, [sections.length]);
 
   const covered = useMemo(
     () =>
@@ -132,8 +170,14 @@ const Roadmap = () => {
 
   const activeSection = sections.find((s) => s.system === activeSystem) ?? null;
 
-  const openSheet = (title: string) =>
+  const openSheet = (title: string) => {
+    try {
+      sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+    } catch {
+      // storage unavailable: Back starts at the top
+    }
     navigate("/sheets", { state: { topic: title } });
+  };
 
   return (
     <DashboardLayout wide>
@@ -256,8 +300,34 @@ const Roadmap = () => {
               /* ── Master / detail. The modal this replaces was a dead end:
                    you could not compare two systems, and closing it lost your
                    place. ─────────────────────────────────────────────────── */
-              <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-                <nav aria-label="Body systems" className="lg:sticky lg:top-6 lg:self-start">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+                {/* Phones and tablets: the systems as one scrolling row, so the
+                    topics are on screen without scrolling past thirteen rows. */}
+                <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:hidden" role="tablist" aria-label="Body systems">
+                  {sections.map((section) => {
+                    const { done, total } = systemCoverage(section);
+                    const active = section.system === activeSystem;
+                    return (
+                      <button
+                        key={section.system}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActiveSystem(section.system)}
+                        className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm transition-colors ${
+                          active ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-foreground"
+                        }`}
+                      >
+                        <span aria-hidden="true">{systemEmoji(section.system)}</span>
+                        <span className="whitespace-nowrap">{section.system}</span>
+                        <span className={`ds-num text-xs ${active ? "opacity-80" : "text-muted-foreground"}`}>
+                          {done}/{total}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <nav aria-label="Body systems" className="hidden lg:sticky lg:top-6 lg:block lg:self-start">
                   <p className="ds-label mb-2.5">Systems</p>
                   <ul className="list-none space-y-1 p-0">
                     {sections.map((section) => {

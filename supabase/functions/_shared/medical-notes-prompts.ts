@@ -239,6 +239,16 @@ FORMATTING RULES (non-negotiable):
 
 ${depthRules}
 
+CLINICAL CASE INPUT — when the input describes a patient (age, sex, history,
+findings) rather than naming a topic:
+- "topic" is the condition the case points to (e.g. "Acute Decompensated Heart
+  Failure"), never the case text itself.
+- Write the sheet for THIS patient: let their age, comorbidities, medications
+  and findings shape the diagnosis, the differentials worth excluding and the
+  management. Name the case details that change the plan (e.g. renal function,
+  pregnancy, a drug already taken) instead of giving one standard version.
+- Write every section. A one-line diagnosis is never a complete answer.
+
 OUTPUT — return exactly this JSON shape. Write every key listed, in this order,
 and no other keys:
 

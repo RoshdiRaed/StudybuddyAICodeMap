@@ -23,6 +23,9 @@ import {
 import { useNavigate } from "react-router-dom";
 import { FilmSection, type FilmHandle } from "@/components/landing/FilmSection";
 import BrandMark from "@/components/brand/BrandMark";
+import { useAuth } from "@/hooks/use-auth";
+import { displayName } from "@/lib/display-name";
+import { readPendingUpgrade } from "@/lib/auth-upgrade";
 import "@/pages/index.css";
 const CONTACT_EMAIL = "mailto:osama200az@gmail.com";
 const SOCIALS = {
@@ -269,6 +272,16 @@ function SectionHeading({
 
 function App() {
   const navigate = useNavigate();
+  const { user, isAnonymous, loading } = useAuth();
+  const signedIn = !loading && !!user && !isAnonymous;
+  const name = signedIn ? displayName(user) : null;
+
+  // A Google sign-in whose callback URL isn't allow-listed comes back to the
+  // Site URL — here — with the session already set. Finish it where it
+  // started instead of leaving the student on the landing page.
+  useEffect(() => {
+    if (signedIn && readPendingUpgrade()) navigate("/auth/callback", { replace: true });
+  }, [signedIn, navigate]);
   const [isDark, setIsDark] = useState(() => {
     try {
       return localStorage.getItem("studybuddy-theme") === "dark";
@@ -320,12 +333,23 @@ function App() {
             <button className="theme-button" type="button" onClick={() => setIsDark((value) => !value)} aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"} data-testid="button-theme-toggle">
               {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <ButtonLink href="/dashboard?signin=1" onClick={signIn} variant="ghost" className="header-sign-in" testId="button-header-sign-in">
-              Sign in
-            </ButtonLink>
-            <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-header-start-free">
-              <span className="header-cta-label">Start free</span><ArrowRight size={15} />
-            </ButtonLink>
+            {signedIn ? (
+              <>
+                <span className="header-greeting">Hi, {name}</span>
+                <ButtonLink href="/dashboard" onClick={() => navigate("/dashboard")} testId="button-header-dashboard">
+                  <span className="header-cta-label">Go to Dashboard</span><ArrowRight size={15} />
+                </ButtonLink>
+              </>
+            ) : (
+              <>
+                <ButtonLink href="/dashboard?signin=1" onClick={signIn} variant="ghost" className="header-sign-in" testId="button-header-sign-in">
+                  Sign in
+                </ButtonLink>
+                <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-header-start-free">
+                  <span className="header-cta-label">Start free</span><ArrowRight size={15} />
+                </ButtonLink>
+              </>
+            )}
             <button className="menu-button" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="mobile-nav" aria-label={menuOpen ? "Close menu" : "Open menu"} data-testid="button-mobile-menu">
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -335,8 +359,14 @@ function App() {
           {NAV_LINKS.map((link) => (
             <a href={link.href} key={link.href} onClick={closeMenu} data-testid={`link-mobile-${link.label.toLowerCase()}`}>{link.label}<ArrowUpRight size={14} /></a>
           ))}
-          <ButtonLink href="/dashboard?signin=1" onClick={() => { closeMenu(); signIn(); }} variant="ghost" testId="button-mobile-sign-in">Sign in</ButtonLink>
-          <ButtonLink href="/dashboard?start=sheet" onClick={() => { closeMenu(); startStudying(); }} testId="button-mobile-start-free">Start free <ArrowRight size={15} /></ButtonLink>
+          {signedIn ? (
+            <ButtonLink href="/dashboard" onClick={() => { closeMenu(); navigate("/dashboard"); }} testId="button-mobile-dashboard">Go to Dashboard <ArrowRight size={15} /></ButtonLink>
+          ) : (
+            <>
+              <ButtonLink href="/dashboard?signin=1" onClick={() => { closeMenu(); signIn(); }} variant="ghost" testId="button-mobile-sign-in">Sign in</ButtonLink>
+              <ButtonLink href="/dashboard?start=sheet" onClick={() => { closeMenu(); startStudying(); }} testId="button-mobile-start-free">Start free <ArrowRight size={15} /></ButtonLink>
+            </>
+          )}
         </nav>
       </header>
 
@@ -345,7 +375,7 @@ function App() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <Reveal>
-                <Eyebrow>For medical students · Step 1 &amp; Step 2-style practice</Eyebrow>
+                <Eyebrow>{name ? <>Welcome back, {name}</> : <>For medical students · Step 1 &amp; Step 2-style practice</>}</Eyebrow>
                 <h1>Your next topic. <em>Understood,</em> remembered, tested.</h1>
                 <p className="hero-lede">Build your understanding with AI-powered Study Sheets, go deeper where you need clarity, and put your knowledge into practice with Flashcards and a USMLE-style QBank.</p>
                 <div className="hero-actions">

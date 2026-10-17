@@ -51,7 +51,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { callMedicalNotes } from "@/lib/callMedicalNotes";
 import { modelUsedFrom, parseModelUsed, type ModelUsed } from "@/lib/model-used";
 import { groupSources } from "@/lib/source-display";
-import { useFlashcardDeck } from "@/hooks/use-flashcard-deck";
+import { makeCardId, useFlashcardDeck } from "@/hooks/use-flashcard-deck";
 import { parseFlashcardsFromOutput } from "@/lib/parse-flashcards";
 import {
   parsePartialSheet,
@@ -67,7 +67,7 @@ import {
 } from "@/types/generated-sheet";
 import GroundingNotice from "@/components/GroundingNotice";
 import { reconcileGroundingLevel, resolveGroundingLevel } from "@/lib/grounding";
-import { parsePlan, renderOrder, resolvePlan, sectionBody } from "@/lib/sheet-plan";
+import { parsePlan, renderOrder, resolvePlan, sectionBody, sectionHasBody } from "@/lib/sheet-plan";
 import type { SheetSectionSpec } from "@/types/generated-sheet";
 import { applySourceLabels } from "@/lib/source-labels";
 import { fetchBestCitation, type CitationResult } from "@/lib/citation";
@@ -189,6 +189,11 @@ function ScrollToTopOnMount() {
   }, []);
   return null;
 }
+
+/** Fewer written sections than this is a failed sheet, not a short one. */
+const MIN_WRITTEN_SECTIONS = 2;
+/** A non-JSON reply shorter than this is a stray line, not an old-format sheet. */
+const MIN_LEGACY_CHARS = 400;
 
 const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
   const [notes, setNotes] = useState(prefill?.input ?? "");
@@ -338,7 +343,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
     isLoggedIn,
     refreshCitation,
   } = useCitationUsage();
-  const { saveCards } = useFlashcardDeck();
+  const { saveCards, allCards } = useFlashcardDeck();
   const { saveItem } = useStudyHistory();
   const layerState = useSheetLayer(generationId, savedSheetId);
 
@@ -620,6 +625,18 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
       // and dump raw JSON at the reader.
       const rawText = fullText || "";
       const result = parseSheetOutput(rawText);
+      // A reply that isn't a sheet — one line such as "Congestive heart
+      // failure." for a pasted vignette — is a failed generation, not a
+      // finished sheet. Said plainly, with a retry, instead of ending on it.
+      const writtenSections = result
+        ? resolvePlan(withPlan(result.sheet)).filter((spec) => sectionHasBody(result.sheet, spec.key)).length
+        : 0;
+      const tooThin = result
+        ? writtenSections < MIN_WRITTEN_SECTIONS
+        : revealedCount === 0 && rawText.trim().length < MIN_LEGACY_CHARS;
+      if (tooThin) {
+        throw new Error("The sheet didn't come out complete. Please try again — rephrasing the topic can help.");
+      }
       if (result) {
         // Reconcile the model's self-reported coverage against retrieval truth.
         // Retrieval can only ever weaken the claim, never strengthen it.
@@ -719,12 +736,6 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
       window.removeEventListener("studybuddy:enhancement-saved", handleEnhancementSaved);
   }, []);
 
-  const startTopic = (label: string) => {
-    setNotes(label);
-    setDeckSaved(false);
-    generate(label);
-  };
-
   /**
    * Share the sheet's text. There is no per-sheet route to link to, so this
    * shares the content itself: the native share sheet where available (mobile),
@@ -802,12 +813,22 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
   // The cards written beside this sheet. A legacy text sheet carries its own.
   const deckCount = sheet?.flashcards?.length ?? 0;
   const hasDeck = deckCount > 0 || !!legacyOutput;
+  // Already in the library — a sheet reopened from the Library whose cards
+  // were added before. Read from the deck itself, not this page's memory, so
+  // the button never offers to add cards that are already there.
+  const deckInLibrary = useMemo(() => {
+    if (!sheet?.flashcards?.length) return false;
+    const have = new Set(allCards.map((c) => c.id));
+    return sheet.flashcards.every((c) => have.has(makeCardId(c.question, c.answer)));
+  }, [sheet?.flashcards, allCards]);
+  const deckDone = deckSaved || deckInLibrary;
 
   /**
    * Adds this sheet's own deck to the library — the cards written beside it,
    * not a new deck.
    */
-  const saveDeck = () => {
+  const saveDeck = async () => {
+    if (deckDone) return;
     const topic = activeSettings.notes.trim().slice(0, 60);
     try {
       if (sheet?.flashcards?.length) {
@@ -826,7 +847,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
           topic,
           topicEmoji: sheet.topicEmoji,
         }));
-        saveCards(
+        await saveCards(
           parsed,
           level
             ? {
@@ -841,7 +862,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
       } else if (legacyOutput) {
         const parsed = parseFlashcardsFromOutput(legacyOutput, activeSettings.notes);
         if (parsed.length) {
-          saveCards(parsed);
+          await saveCards(parsed);
           setDeckSaved(true);
           toast({ title: `${parsed.length} cards saved to your library` });
         } else {
@@ -851,15 +872,15 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
         toast({ title: "No flashcards found in this sheet", variant: "destructive" });
       }
     } catch {
-      toast({ title: "Could not parse flashcards", variant: "destructive" });
+      toast({ title: "Couldn't add the cards", description: "Please try again.", variant: "destructive" });
     }
   };
 
   const deck: SheetDeck | null = hasDeck
     ? {
         count: deckCount,
-        saved: deckSaved,
-        onSave: () => saveDeck(),
+        saved: deckDone,
+        onSave: () => void saveDeck(),
         onReview: () => navigate("/library"),
       }
     : null;
@@ -939,7 +960,20 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
   };
 
   /** A QBank set on this sheet, focused on what the student marked. */
-  const practiceInQBank = (focus = "") => navigate("/qbank", { state: { topic: qbankTopic(sheetTopic, focus) } });
+  // QBank needs an account. A guest signs in first and then lands on QBank
+  // with this sheet's topic, rather than being dropped on the Dashboard.
+  const afterAuthRef = useRef<(() => void) | null>(null);
+  const [authReason, setAuthReason] = useState<string | undefined>(undefined);
+  const practiceInQBank = (focus = "") => {
+    const go = () => navigate("/qbank", { state: { topic: qbankTopic(sheetTopic, focus) } });
+    if (!user || isAnonymous) {
+      afterAuthRef.current = go;
+      setAuthReason("Sign in to practise QBank questions on this topic — you'll go straight there.");
+      setAuthModalOpen(true);
+      return;
+    }
+    go();
+  };
 
   // ── Rewrites, one section at a time ───────────────────────────────────
   /** Every rewrite stops. */
@@ -1195,7 +1229,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
       ) : !isSheetLimited ? (
         <span>
           {" "}
-          · Free tier: GPT-OSS 20B ·{" "}
+          · Free plan ·{" "}
           <button type="button" className="underline hover:text-foreground" onClick={goPro}>
             Go Pro for Corti
           </button>
@@ -1356,9 +1390,9 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
             New sheet
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={saveDeck} disabled={loading || deckSaved || !hasDeck}>
+          <DropdownMenuItem onSelect={() => void saveDeck()} disabled={loading || deckDone || !hasDeck}>
             <Layers className="mr-2 h-4 w-4" />
-            {deckSaved
+            {deckDone
               ? "Deck saved to your library"
               : deckCount
               ? `Add ${deckCount} cards to my deck`
@@ -1523,7 +1557,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
     <SheetComposer
       notes={notes}
       onNotesChange={setNotes}
-      onGenerate={(topic) => (topic ? startTopic(topic) : generate())}
+      onGenerate={() => generate()}
       loading={loading}
       settings={settingsRow}
       usage={usageLine}
@@ -1561,7 +1595,22 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
 
         {reading && sheet && !legacyOutput && <BranchPanel store={branches} />}
 
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
+        <AuthModal
+          open={authModalOpen}
+          reason={authReason}
+          onOpenChange={(open) => {
+            setAuthModalOpen(open);
+            if (!open) {
+              // After onSignedIn has had its turn: a dismissed modal forgets
+              // where it was going, so a later sign-in doesn't jump to QBank.
+              window.setTimeout(() => {
+                afterAuthRef.current = null;
+                setAuthReason(undefined);
+              }, 0);
+            }
+          }}
+          onSignedIn={() => afterAuthRef.current?.()}
+        />
         <GoProModal open={goProOpen} onOpenChange={setGoProOpen} />
         {sheet && !legacyOutput && (
           <ExportPdfDialog

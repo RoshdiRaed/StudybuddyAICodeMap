@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import AuthModal from "@/components/AuthModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -120,6 +121,8 @@ const QBank = () => {
   const [discardTarget, setDiscardTarget] = useState<UnfinishedRow | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [resumingId, setResumingId] = useState<string | null>(null);
+  // Signing in happens here, so the topic a sheet handed over is still in the box afterwards.
+  const [authOpen, setAuthOpen] = useState(false);
 
   // A sheet hands its topic over (and what the student marked on it), as the
   // Roadmap hands one to Sheets. The student still chooses the set and starts it.
@@ -169,7 +172,7 @@ const QBank = () => {
       else
         toast({
           title: "Could not resume that set",
-          description: resumeError ?? "Check your connection and try again.",
+          description: "Check your connection and try again.",
           variant: "destructive",
         });
     } finally {
@@ -278,7 +281,7 @@ const QBank = () => {
               </div>
               <button
                 type="button"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => setAuthOpen(true)}
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-[color:var(--color-foreground)] text-sm font-semibold text-[color:var(--color-background)] shadow-[0_16px_32px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.16)]"
               >
                 <LogIn className="w-4 h-4" />
@@ -604,6 +607,11 @@ const QBank = () => {
             </>
           )}
       </div>
+      <AuthModal
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        reason="Sign in to generate QBank sets. Your sets are saved so you can resume them."
+      />
     </DashboardLayout>
   );
 };

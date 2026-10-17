@@ -210,19 +210,19 @@ const ChapterGroup = ({ chapter, query }: { chapter: SourceChapter; query: strin
         padding: "0 2px 5px",
       }}
     >
-      {/* No heading is a real outcome, not a gap: it means nothing in the
-          chunk's own metadata could place it, and inventing one would be
-          worse than leaving the passages listed under the book alone. */}
+      {/* No heading is a real outcome, not a gap: nothing in the chunk's own
+          metadata could place it. Inventing one would be worse — and naming
+          the absence read as a failed upload — so the passages just sit under
+          the book, with only the count on this line. */}
       <span
         style={{
           fontFamily: "var(--font-sans)",
           fontSize: 12,
           fontWeight: 600,
-          color: chapter.heading ? "var(--fg)" : "var(--fg-muted)",
-          fontStyle: chapter.heading ? "normal" : "italic",
+          color: "var(--fg)",
         }}
       >
-        {chapter.heading ?? "Location not recorded"}
+        {chapter.heading ?? ""}
       </span>
       <span
         style={{

@@ -1,3 +1,4 @@
+import { friendlyAuthError } from "@/lib/auth-errors";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import type { Session, User } from "@supabase/supabase-js";
@@ -47,6 +48,7 @@ interface AuthContextValue {
   signUp: (
     email: string,
     password: string,
+    username?: string | null,
   ) => Promise<{ error: string | null; needsVerification: boolean; email?: string }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
@@ -112,7 +114,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signUp = async (
     email: string,
-    password: string
+    password: string,
+    username?: string | null
   ): Promise<{ error: string | null; needsVerification: boolean; email?: string }> => {
     if (isDisposableEmail(email)) {
       return { error: "Please use a permanent email address.", needsVerification: false };
@@ -123,19 +126,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // is_anonymous true until the OTP is confirmed. The password is applied in
     // verifyOtp, once the user is no longer anonymous.
     if (isAnonymous) {
-      const { error } = await supabase.auth.updateUser({ email });
-      if (error) return { error: error.message, needsVerification: false };
+      const { error } = await supabase.auth.updateUser({ email, data: username ? { username } : undefined });
+      if (error) return { error: friendlyAuthError(error.message), needsVerification: false };
       return { error: null, needsVerification: true, email };
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      // Check if error indicates email already registered
-      if (error.message.includes("already registered") || error.message.includes("already exists")) {
-        return { error: "An account with this email already exists", needsVerification: false };
-      }
-      return { error: error.message, needsVerification: false };
-    }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: username ? { data: { username } } : undefined,
+    });
+    // Never say whether the email already has an account.
+    if (error) return { error: friendlyAuthError(error.message), needsVerification: false };
     // If no session returned, email confirmation is required
     const needsVerification = !data.session;
     return { error: null, needsVerification, email: data.user?.email };
@@ -148,12 +150,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     type: "signup" | "email_change" = "signup"
   ): Promise<{ error: string | null }> => {
     const { error } = await supabase.auth.verifyOtp({ email, token, type });
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyAuthError(error.message) };
 
     // The anonymous-upgrade path above could not set the password before
     // verification, so apply it now that the user is no longer anonymous.
     const { error: passwordError } = await supabase.auth.updateUser({ password });
-    if (passwordError) return { error: passwordError.message };
+    if (passwordError) return { error: friendlyAuthError(passwordError.message) };
 
     const { data: { user: confirmedUser } } = await supabase.auth.getUser();
     const uid = confirmedUser?.id;
@@ -169,8 +171,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     email: string,
     type: "signup" | "email_change" = "signup"
   ): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.resend({ type, email });
-    return { error: error?.message ?? null };
+    // A guest upgrading their anonymous session got the first code from
+    // updateUser({ email }), so the next one is requested the same way.
+    // Resent codes were reported as never arriving on this path.
+    const { error } =
+      type === "email_change"
+        ? await supabase.auth.updateUser({ email })
+        : await supabase.auth.resend({ type, email });
+    return { error: error ? friendlyAuthError(error.message) : null };
   };
 
   const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
@@ -180,7 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const anonUsage = anonUserId ? await snapshotAnonUsage(anonUserId, today) : [];
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyAuthError(error.message) };
 
     if (anonUsage.length > 0) {
       const { data: { user: realUser } } = await supabase.auth.getUser();
