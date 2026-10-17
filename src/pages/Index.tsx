@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
-  BarChart3,
+  BookOpen,
   Check,
-  ChevronDown,
-  CircleDot,
   FileText,
   Instagram,
-  Laptop,
   Layers,
   Linkedin,
   Mail,
@@ -17,18 +14,13 @@ import {
   Play,
   Send,
   Shield,
-  Smartphone,
   Sparkles,
   Stethoscope,
   Sun,
   Target,
-  TrendingUp,
-  Users,
   X,
-  Zap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ResponsiveCarousel } from "@/components/ResponsiveCarousel";
 import { FilmSection, type FilmHandle } from "@/components/landing/FilmSection";
 import BrandMark from "@/components/brand/BrandMark";
 import "@/pages/index.css";
@@ -40,114 +32,116 @@ const SOCIALS = {
 };
 
 const NAV_LINKS = [
-  { href: "#playground", label: "How it works" },
-  { href: "#features", label: "Features" },
+  { href: "#tools", label: "Tools" },
+  { href: "#film", label: "Demo" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
-const STEPS = [
+const TOOLS = [
   {
-    name: "Enter a topic",
-    desc: "Type any medical topic — no PDF upload needed. StudyBuddy AI maps it to your curriculum automatically.",
-  },
-  {
-    name: "Get your study sheet",
-    desc: "A structured clinical sheet with overview, pathophysiology, diagnosis, and management — in seconds.",
-  },
-  {
-    name: "Practice with the QBank",
-    desc: "Single-best-answer vignettes for the topic you just studied. StudyBuddy remembers what you get wrong.",
-  },
-  {
-    name: "Review and repeat",
-    desc: "Spaced repetition brings back your weak spots. Tap any concept to go deeper, and check the evidence behind it.",
-  },
-];
-
-const FEATURES = [
-  {
-    icon: Stethoscope,
-    title: "AI Study Sheets",
-    desc: "Topic name in — structured clinical sheet out. Covers overview, pathophysiology, diagnosis, and management.",
-    tags: ["Any topic", "Seconds"],
-  },
-  {
-    icon: Target,
-    title: "Smart QBank",
-    desc: "Single-best-answer clinical vignettes with full explanations. Adaptive — the QBank tracks your weak spots.",
-    tags: ["Adaptive", "Spaced repetition"],
+    icon: FileText,
+    name: "Study Sheets",
+    verb: "Understand",
+    desc: "Explore structured medical topics, add your notes, and dive deeper into difficult concepts.",
   },
   {
     icon: Layers,
-    title: "Flashcard Decks",
-    desc: "Generate decks from any topic or import your own. Spaced repetition surfaces cards when retention is lowest.",
-    tags: ["Spaced repetition", "Any topic"],
+    name: "Flashcards",
+    verb: "Remember",
+    desc: "Reinforce key concepts with spaced-repetition flashcards.",
   },
   {
-    icon: Shield,
-    title: "PubMed Citations",
-    desc: "Every study sheet links out to real papers on PubMed. Evidence you can check yourself, not invented references.",
-    tags: ["Pro", "PubMed"],
+    icon: Target,
+    name: "QBank",
+    verb: "Apply",
+    desc: "Practice USMLE-style questions with explanations that help you learn from each answer.",
   },
-  {
-    icon: TrendingUp,
-    title: "Progress Analytics",
-    desc: "Session history, subject coverage, and accuracy trends. See exactly where your knowledge gaps are.",
-    tags: ["Progress", "Weak spots"],
-  },
-  {
-    icon: Zap,
-    title: "Inline Enhance",
-    desc: "Highlight any term in a study sheet to pull up a deep-dive sidebar — like AMBOSS, built in.",
-    tags: ["Pro", "Instant"],
-  },
+];
+
+const DEEP_FEATURES = [
+  { title: "Deep dives", desc: "Open any section into a focused branch — mechanism, differentials, management — without leaving the sheet." },
+  { title: "Spaced repetition", desc: "Cards come back just before you would forget them, tuned to your own memory, not a fixed 24-hour schedule." },
+  { title: "Make it yours", desc: "Highlight, add notes, rewrite a line with AI, or turn any line into a flashcard." },
+  { title: "One topic, three tools", desc: "Finish a sheet and practise the same topic in the QBank or add its cards to your deck in one tap." },
+  { title: "Export", desc: "Download any sheet as a PDF or Word file to print or share." },
 ];
 
 const FAQS = [
   {
     q: "What is StudyBuddy AI?",
-    a: "StudyBuddy AI is an AI-powered study platform built for medical students. Enter any topic and get a structured clinical study sheet, practice questions, and flashcard decks — all in one place. Built by a final-year medical student in Gaza, priced for MENA.",
+    a: "An AI study platform for medical students. Name a topic and get a structured study sheet, flashcards with spaced repetition, and USMLE-style practice questions — in one place.",
   },
   {
-    q: "Is it aligned with USMLE?",
-    a: "Yes. The QBank is written in USMLE Step 1 style — clinical vignette, single best answer, plausible distractors — and questions are tagged by subject and domain so you can target your practice sessions. Arab Board tagging is on the roadmap.",
+    q: "Which exams is it for?",
+    a: "USMLE Step 1 and Step 2 CK. In the QBank you choose Step 1, Step 2 CK, or a mix, and every question is a single-best-answer clinical vignette with explanations.",
   },
   {
-    q: "How is this different from Anki or Amboss?",
-    a: "StudyBuddy AI builds content from any topic you name — no pre-made decks to buy, no textbook to upload. Inline Enhance works like AMBOSS but sits directly inside your study sheets. And it's priced for MENA, not the US.",
+    q: "Can I try it without an account?",
+    a: "Yes. As a guest you can make 5 study sheets and 5 flashcard decks a day; guest decks stay on your device. The QBank needs a free account so your sets are saved and you can resume them.",
+  },
+  {
+    q: "Where do the answers come from?",
+    a: "Sheets are grounded in our medical reference library and show the sources they used. If a topic is not in the library, the sheet says so and asks you to check a primary source.",
   },
   {
     q: "Is my data private?",
-    a: "Your study sheets, decks, and session history sync securely to your account. We don't sell your data or share it with third parties. Citations come from the NIH's public research database.",
+    a: "Your sheets, decks, and sessions sync to your account. We don't sell your data or share it with third parties.",
   },
   {
     q: "Can I use it on my phone?",
-    a: "Yes — StudyBuddy AI is fully mobile-optimized. A native app is on the roadmap.",
+    a: "Yes — StudyBuddy AI works in any mobile browser. A native app is on the roadmap.",
+  },
+];
+
+const PLANS = [
+  {
+    key: "guest",
+    kicker: "No account",
+    name: "Guest",
+    price: "$0",
+    note: "try it now",
+    features: [
+      "5 study sheets a day",
+      "5 flashcard decks a day, saved on this device",
+      "1 sheet written by our medical AI model",
+      "1 PubMed citation lookup a day",
+      "QBank needs a free account",
+    ],
+    cta: "Try as guest",
   },
   {
-    q: "Is there a free plan?",
-    a: "Yes. The free plan includes the full AI study sheet generator and QBank access with no credit card required. Pro ($5/mo) unlocks unlimited usage, PubMed citations, the Inline Enhance sidebar, and our most advanced medical AI model.",
+    key: "free",
+    kicker: "Free account",
+    name: "Free",
+    price: "$0",
+    note: "always free",
+    features: [
+      "5 study sheets a day",
+      "5 flashcard decks a day, synced to your account",
+      "QBank: USMLE-style sets of up to 20 questions",
+      "3 sheets written by our medical AI model",
+      "3 PubMed citation lookups a day",
+      "Progress and history saved",
+    ],
+    cta: "Start free",
   },
-];
-
-const FREE_FEATURES = [
-  "AI study sheets (5/day limit)",
-  "Flashcard decks with spaced repetition",
-  "QBank sessions (10 questions/day)",
-  "Basic progress tracking",
-  "Community support",
-];
-
-const PRO_FEATURES = [
-  "Unlimited AI study sheets",
-  "Full QBank access (all questions)",
-  "Advanced spaced repetition analytics",
-  "PubMed citations on every sheet",
-  "Inline Enhance sidebar",
-  "Priority support",
-  "Early access to new features",
-];
+  {
+    key: "pro",
+    kicker: "For the serious student",
+    name: "Pro",
+    price: "$5",
+    note: "/ month",
+    features: [
+      "Unlimited study sheets and flashcard decks",
+      "Our medical AI model on every sheet",
+      "Unlimited PubMed citation lookups",
+      "Make sheets yours: highlight, notes, AI rewrite",
+      "Everything in Free",
+    ],
+    cta: "Get Pro",
+  },
+] as const;
 
 function useInView() {
   const ref = useRef<HTMLDivElement>(null);
@@ -223,8 +217,10 @@ function ButtonLink({
   target,
   rel,
   testId,
+  className = "",
 }: {
   children: ReactNode;
+  className?: string;
   href?: string;
   variant?: "primary" | "accent" | "ghost" | "dark-ghost";
   onClick?: () => void;
@@ -235,7 +231,7 @@ function ButtonLink({
   return (
     <a
       href={href}
-      className={`button button-${variant}`}
+      className={`button button-${variant} ${className}`}
       onClick={(event) => {
         if (onClick) {
           event.preventDefault();
@@ -292,8 +288,14 @@ function App() {
   }, [isDark]);
 
   const startStudying = () => navigate("/dashboard?start=sheet");
+  const signIn = () => navigate("/dashboard?signin=1");
   const filmRef = useRef<FilmHandle>(null);
   const closeMenu = () => setMenuOpen(false);
+  const watchDemo = (event: MouseEvent) => {
+    if (!filmRef.current) return;
+    event.preventDefault();
+    filmRef.current.playFromTop();
+  };
 
   return (
     <div className="site-shell">
@@ -303,13 +305,13 @@ function App() {
       <header className={`site-header ${menuOpen ? "menu-open" : ""}`}>
         <div className="container header-inner">
           <a href="#home" className="brand" onClick={closeMenu} data-testid="link-brand-home" aria-label="StudyBuddy AI home">
-            <BrandMark size={34} className="brand-mark" />
+            <BrandMark size={44} className="brand-mark" />
             <span className="brand-name">StudyBuddy <b>AI</b></span>
             <span className="brand-beta">BETA</span>
           </a>
           <nav className="desktop-nav" aria-label="Primary navigation">
             {NAV_LINKS.map((link) => (
-              <a href={link.href} key={link.href} data-testid={`link-nav-${link.label.toLowerCase().split(" ").join("-")}`}>
+              <a href={link.href} key={link.href} data-testid={`link-nav-${link.label.toLowerCase()}`}>
                 {link.label}
               </a>
             ))}
@@ -318,8 +320,11 @@ function App() {
             <button className="theme-button" type="button" onClick={() => setIsDark((value) => !value)} aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"} data-testid="button-theme-toggle">
               {isDark ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-header-early-access">
-              <span className="header-cta-label">Get early access</span><ArrowRight size={15} />
+            <ButtonLink href="/dashboard?signin=1" onClick={signIn} variant="ghost" className="header-sign-in" testId="button-header-sign-in">
+              Sign in
+            </ButtonLink>
+            <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-header-start-free">
+              <span className="header-cta-label">Start free</span><ArrowRight size={15} />
             </ButtonLink>
             <button className="menu-button" type="button" onClick={() => setMenuOpen((value) => !value)} aria-expanded={menuOpen} aria-controls="mobile-nav" aria-label={menuOpen ? "Close menu" : "Open menu"} data-testid="button-mobile-menu">
               {menuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -328,9 +333,10 @@ function App() {
         </div>
         <nav id="mobile-nav" className="mobile-nav" aria-label="Mobile navigation">
           {NAV_LINKS.map((link) => (
-            <a href={link.href} key={link.href} onClick={closeMenu} data-testid={`link-mobile-${link.label.toLowerCase().split(" ").join("-")}`}>{link.label}<ArrowUpRight size={14} /></a>
+            <a href={link.href} key={link.href} onClick={closeMenu} data-testid={`link-mobile-${link.label.toLowerCase()}`}>{link.label}<ArrowUpRight size={14} /></a>
           ))}
-          <ButtonLink  href="/dashboard?start=sheet" onClick={() => { closeMenu(); startStudying(); }}  testId="button-mobile-early-access">Start studying <ArrowRight size={15} /></ButtonLink>
+          <ButtonLink href="/dashboard?signin=1" onClick={() => { closeMenu(); signIn(); }} variant="ghost" testId="button-mobile-sign-in">Sign in</ButtonLink>
+          <ButtonLink href="/dashboard?start=sheet" onClick={() => { closeMenu(); startStudying(); }} testId="button-mobile-start-free">Start free <ArrowRight size={15} /></ButtonLink>
         </nav>
       </header>
 
@@ -339,157 +345,102 @@ function App() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <Reveal>
-                <Eyebrow>Built for medical students · MENA</Eyebrow>
-                <h1>Study smarter.<br />Score <em>higher.</em> Pass.</h1>
-                <p className="hero-lede">StudyBuddy turns your curriculum into AI-powered sheets, questions, and explanations — so every study hour compounds. Built by an MD for medical students across MENA.</p>
+                <Eyebrow>For medical students · Step 1 &amp; Step 2-style practice</Eyebrow>
+                <h1>Your next topic. <em>Understood,</em> remembered, tested.</h1>
+                <p className="hero-lede">Build your understanding with AI-powered Study Sheets, go deeper where you need clarity, and put your knowledge into practice with Flashcards and a USMLE-style QBank.</p>
                 <div className="hero-actions">
-                  <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-hero-start">Start free — no card required <ArrowRight size={18} /></ButtonLink>
-                  <a
-                    href="#film"
-                    className="button button-ghost"
-                    data-testid="link-hero-watch-film"
-                    onClick={(event) => {
-                      if (!filmRef.current) return;
-                      event.preventDefault();
-                      filmRef.current.playFromTop();
-                    }}
-                  >
-                    <Play size={15} fill="currentColor" strokeWidth={0} /> Watch the film · 2:34
+                  <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-hero-early-access">Get early access <ArrowRight size={18} /></ButtonLink>
+                  <a href="#film" className="button button-ghost" data-testid="link-hero-watch-demo" onClick={watchDemo}>
+                    <Play size={15} fill="currentColor" strokeWidth={0} /> Watch demo
                   </a>
                 </div>
+                <p className="hero-exam">Built by an MD for medical students across MENA.</p>
               </Reveal>
             </div>
             <Reveal direction="left" delay={160} className="hero-visual-wrap">
-              <div className="hero-visual" role="img" aria-label="Sample StudyBuddy question on acute coronary syndrome, showing the correct answer highlighted and an ECG trace">
-                <div className="question-top"><span>QUESTION 14 · CARDIOLOGY</span><span className="question-tag">STEP 1</span></div>
-                <div className="question-body">
-                  <div className="question-meta"><CircleDot size={12} /> Adaptive practice <span>•</span> 0:42</div>
-                  <span className="stem">A 58-year-old man presents with:</span>
-                  <p className="question-text">crushing chest pain radiating to left arm. ECG shows ST elevation in II, III, aVF.</p>
-                  <svg className="ecg-line" viewBox="0 0 400 34" preserveAspectRatio="none" aria-hidden="true"><path d="M0 17 L60 17 L72 4 L84 30 L96 17 L140 17 L152 10 L164 17 L220 17 L232 4 L244 30 L256 17 L400 17" /></svg>
-                  <div className="answer-option"><span>A</span> Anterior STEMI</div>
-                  <div className="answer-option"><span>B</span> Inferior STEMI</div>
-                  <div className="answer-option answer-correct"><Check size={15} /> Inferior STEMI — RCA occlusion</div>
-                  <div className="answer-option"><span>D</span> Unstable angina</div>
-                </div>
-                <div className="question-foot"><span><Sparkles size={13} /> AI explanation ready</span><span>single best answer</span></div>
-              </div>
-              <div className="floating-note floating-note-top"><span className="note-icon"><FileText size={14} /></span><span><b>Study sheet ready</b><small>Acute coronary syndrome</small></span></div>
-              <div className="floating-note floating-note-bottom"><span className="note-icon note-icon-warm"><BarChart3 size={14} /></span><span><b>+15% this week</b><small>Cardiology accuracy</small></span></div>
+              <SheetPreview />
+              <div className="floating-note floating-note-bottom"><span className="note-icon"><BookOpen size={14} /></span><span><b>3 sources cited</b><small>Tap any source to open it</small></span></div>
             </Reveal>
           </div>
-          <div className="scroll-cue" aria-hidden="true"><span>scroll to explore</span><ChevronDown size={17} /></div>
         </section>
 
-        <div className="subject-ticker" aria-hidden="true">
-          <div className="ticker-track"><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span><i>·</i><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span></div>
-        </div>
+        <section id="tools" className="section tools-section">
+          <div className="container">
+            <SectionHeading eyebrow="Core tools" title={<>Understand. Remember. <em>Apply.</em></>} center />
+            <Reveal className="tools-grid">
+              {TOOLS.map((tool) => {
+                const Icon = tool.icon;
+                return (
+                  <article className="tool-card" key={tool.name} data-testid={`card-tool-${tool.name.toLowerCase().replace(" ", "-")}`}>
+                    <span className="feature-icon"><Icon size={19} /></span>
+                    <h3>{tool.name} <span>— {tool.verb}</span></h3>
+                    <p>{tool.desc}</p>
+                  </article>
+                );
+              })}
+            </Reveal>
+          </div>
+        </section>
 
         <FilmSection ref={filmRef} onStart={startStudying} />
 
-        <section id="playground" className="section section-how">
-          <div className="container">
-            <SectionHeading eyebrow="How it works" title={<>Four steps to <em>mastery.</em></>} center>
-              No setup, no learning curve. The same easy loop — study, test, review, repeat.
-            </SectionHeading>
+        <section id="deep-dives" className="section">
+          <div className="container split-grid">
+            <Reveal direction="right" className="split-visual">
+              <DeepDivePreview />
+            </Reveal>
             <Reveal>
-              <ResponsiveCarousel
-                className="steps-carousel-wrapper"
-                desktopClassName="steps-grid"
-                mobileItemClassName="step-carousel-slide"
-              >
-                {STEPS.map((step, index) => (
-                  <article className="step-card" key={step.name} data-testid={`card-step-${index + 1}`}>
-                    <div className="step-number">0{index + 1}<span> / 04</span></div>
-                    <div className="step-rule" />
-                    <h3>{step.name}</h3>
-                    <p>{step.desc}</p>
-                    <div className="step-arrow" aria-hidden="true"><ArrowUpRight size={16} /></div>
-                  </article>
+              <SectionHeading eyebrow="Inside a sheet" title={<>Go deeper where you <em>need clarity.</em></>} />
+              <ul className="bullet-list">
+                {DEEP_FEATURES.map((f) => (
+                  <li key={f.title}><Check size={16} /><span><b>{f.title}.</b> {f.desc}</span></li>
                 ))}
-              </ResponsiveCarousel>
+              </ul>
             </Reveal>
           </div>
         </section>
 
-        <section className="section platform-section">
-          <div className="container">
-            <SectionHeading eyebrow="Built to fit your study life" title={<>The same experience, <em>everywhere</em> you study.</>} center>
-              Between lectures, on the ward, or 2am the night before an exam — your sheets, decks, and question history follow you.
-            </SectionHeading>
+        <section id="sources" className="section tinted-section">
+          <div className="container split-grid split-grid-reverse">
             <Reveal>
-              <ResponsiveCarousel
-                className="platform-carousel-wrapper"
-                desktopClassName="platform-grid"
-                mobileItemClassName="platform-carousel-slide"
-              >
-                {[
-                  { icon: Laptop, eyebrow: "Web app", title: "Full feature set in your browser", desc: "Nothing to install. Open it in any browser and start studying.", action: "Open StudyBuddy →", test: "link-platform-web" },
-                  { icon: Smartphone, eyebrow: "Mobile-ready", title: "Study between lectures", desc: "Optimized for the ten minutes you get on the go.", action: "Coming soon", test: "text-platform-mobile" },
-                  { icon: Users, eyebrow: "Study groups", title: "Compete with classmates", desc: "Share decks and climb the leaderboard together.", action: "Coming soon", test: "text-platform-groups" },
-                ].map((platform) => {
-                  const Icon = platform.icon;
-                  return <article className="platform-card" key={platform.eyebrow} data-testid={`card-platform-${platform.eyebrow.toLowerCase().replace(" ", "-")}`}><span className="platform-icon"><Icon size={18} /></span><span className="platform-eyebrow">{platform.eyebrow}</span><h3>{platform.title}</h3><p>{platform.desc}</p>{platform.eyebrow === "Web app" ? <button type="button" onClick={startStudying} className="text-action" data-testid={platform.test}>{platform.action}<ArrowRight size={14} /></button> : <span className="coming-soon" data-testid={platform.test}>{platform.action}</span>}</article>;
-                })}
-              </ResponsiveCarousel>
+              <SectionHeading eyebrow="Medical sources" title={<>Answers you can <em>check.</em></>} />
+              <ul className="bullet-list">
+                <li><Check size={16} /><span><b>Sources on every sheet.</b> The references a sheet used are listed at the end — textbook chapter or PubMed paper.</span></li>
+                <li><Check size={16} /><span><b>One tap to verify.</b> Each PubMed source opens the original paper so you can read it yourself.</span></li>
+                <li><Check size={16} /><span><b>Honest when it can't.</b> If a topic isn't in our reference library, the sheet says so and asks you to check a primary source.</span></li>
+              </ul>
+            </Reveal>
+            <Reveal direction="left" className="split-visual">
+              <SourcesPreview />
             </Reveal>
           </div>
         </section>
-        {/* ------- features start--------- */}
-        <section id="features" className="section tinted-section">
-          <div className="container">
-            <SectionHeading eyebrow="Core features" title={<>Clinical AI for medical education, built for <em>MENA.</em></>} children="Every feature exists because a student lost hours to the problem it solves." center/>
 
-            <Reveal>
-              <ResponsiveCarousel
-                className="features-carousel-wrapper"
-                desktopClassName="features-grid"
-                mobileItemClassName="feature-carousel-slide"
-              >
-                {FEATURES.map((feature, index) => {
-                  const Icon = feature.icon;
-                  return <article className="feature-card" key={feature.title} data-testid={`card-feature-mobile-${index + 1}`}><span className="feature-icon"><Icon size={19} /></span><h3>{feature.title}</h3><p>{feature.desc}</p><div className="tag-row">{feature.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></article>;
-                })}
-              </ResponsiveCarousel>
-            </Reveal>
-          </div>
-        </section>
-        {/* ------- features end--------- */}
-
-        <section id="pricing" className="section tinted-section pricing-section">
+        <section id="pricing" className="section pricing-section">
           <div className="container">
-            <SectionHeading eyebrow="Pricing" title={<>Free at the core. <em>Real value</em> where it counts.</>} center>Start with everything you need to study. Upgrade only when the limits actually start to bite.</SectionHeading>
+            <SectionHeading eyebrow="Pricing" title={<>Start free. <em>Upgrade</em> when you need more.</>} center>No credit card required. Limits reset every day.</SectionHeading>
             <Reveal className="pricing-grid">
-              <article className="pricing-card">
-                <span className="plan-kicker">For getting started</span><h3>Free</h3><div className="price">$0 <small>always free</small></div>
-                <ul>{FREE_FEATURES.map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul>
-                <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} variant="ghost" testId="button-pricing-free">Start for free <ArrowRight size={15} /></ButtonLink>
-              </article>
-              <article className="pricing-card pricing-pro"><span className="popular-badge">MOST POPULAR</span><span className="plan-kicker">For the serious student</span><h3>Pro</h3><div className="price">$5 <small>/ month</small></div>
-                <ul>{PRO_FEATURES.map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul>
-                <ButtonLink href={CONTACT_EMAIL} variant="accent" testId="button-pricing-pro">Get Pro <ArrowRight size={15} /></ButtonLink>
-              </article>
-            </Reveal>
-          </div>
-        </section>
-
-        <section className="section timeline-section">
-          <div className="container">
-            <SectionHeading eyebrow="Built as evidence, used since day one" title={<>Started as a student problem. Grew into a <em>platform.</em></>} center />
-            <Reveal className="timeline-grid">
-              {[
-                ["USMLE", "Step 1 & 2", "Question style benchmarked against real exam vignettes, not generic trivia."],
-                ["Adaptive", "Spaced repetition engine", "Self-adjusts to what you keep forgetting, not a fixed 24-hour schedule."],
-                ["Free tier", "No credit card required", "Start with everything you need — upgrade only when the limits start to bite."],
-                ["MENA-first", "Built in Gaza", "Priced and localized for the region it was built to serve."],
-              ].map(([kicker, title, copy]) => <article className="timeline-card" key={kicker}><span>{kicker}</span><h3>{title}</h3><p>{copy}</p></article>)}
+              {PLANS.map((plan) => (
+                <article className={`pricing-card ${plan.key === "pro" ? "pricing-pro" : ""}`} key={plan.key} data-testid={`card-plan-${plan.key}`}>
+                  {plan.key === "pro" ? <span className="popular-badge">MOST POPULAR</span> : null}
+                  <span className="plan-kicker">{plan.kicker}</span>
+                  <h3>{plan.name}</h3>
+                  <div className="price">{plan.price} <small>{plan.note}</small></div>
+                  <ul>{plan.features.map((feature) => <li key={feature}><Check size={16} />{feature}</li>)}</ul>
+                  {plan.key === "pro" ? (
+                    <ButtonLink href={CONTACT_EMAIL} variant="accent" testId="button-pricing-pro">{plan.cta} <ArrowRight size={15} /></ButtonLink>
+                  ) : (
+                    <ButtonLink href="/dashboard?start=sheet" onClick={plan.key === "free" ? signIn : startStudying} variant="ghost" testId={`button-pricing-${plan.key}`}>{plan.cta} <ArrowRight size={15} /></ButtonLink>
+                  )}
+                </article>
+              ))}
             </Reveal>
           </div>
         </section>
 
         <section id="faq" className="section tinted-section faq-section">
           <div className="container faq-layout">
-            <SectionHeading eyebrow="FAQ" title={<>Questions from students, faculty, and the <em>curious.</em></>} children="If yours isn't here, email us — it'll likely become the next line on this list." />
+            <SectionHeading eyebrow="FAQ" title={<>Questions, <em>answered.</em></>} children="If yours isn't here, email us." />
             <Reveal className="faq-list">
               {FAQS.map((faq, index) => <details className="faq-item" key={faq.q} open={index === 0}><summary data-testid={`button-faq-${index + 1}`}><span>{faq.q}</span><span className="faq-plus" aria-hidden="true">+</span></summary><p>{faq.a}</p></details>)}
             </Reveal>
@@ -498,7 +449,10 @@ function App() {
 
         <section className="section final-cta-section">
           <Reveal className="container">
-            <div className="final-cta"><div className="cta-grid" aria-hidden="true" /><div className="final-cta-inner"><Eyebrow dark>Open invitation</Eyebrow><h2>Growing across MENA.<br />Built with <em>students.</em></h2><p>StudyBuddy AI started in Gaza and is growing across the Arab world. If you're a medical student who wants better tools — join the early access list, or follow along on Instagram.</p><div className="cta-actions"><ButtonLink href="/dashboard?start=sheet" onClick={startStudying} variant="accent" testId="button-final-early-access">Get early access <ArrowRight size={16} /></ButtonLink><ButtonLink href={SOCIALS.instagram} variant="dark-ghost" target="_blank" rel="noopener noreferrer" testId="link-final-instagram">Follow on Instagram <Instagram size={15} /></ButtonLink></div></div></div>
+            <div className="final-cta-simple">
+              <h2>Ready for your next topic?</h2>
+              <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-final-early-access">Get early access <ArrowRight size={16} /></ButtonLink>
+            </div>
           </Reveal>
         </section>
       </main>
@@ -506,14 +460,77 @@ function App() {
       <footer className="site-footer">
         <div className="container">
           <div className="footer-grid">
-            <div className="footer-brand"><a href="#home" className="brand" data-testid="link-footer-home"><BrandMark size={34} className="brand-mark" /><span className="brand-name">StudyBuddy <b>AI</b></span></a><p>AI study sheets, decks, and QBank for MENA medical students.</p></div>
-            <div><h4>Product</h4><a href="#playground" data-testid="link-footer-how-it-works">How it works</a><a href="/qbank" data-testid="link-footer-qbank">QBank</a><a href="#features" data-testid="link-footer-features">Features</a><a href="#pricing" data-testid="link-footer-pricing">Pricing</a></div>
-            <div><h4>Resources</h4><a href="#faq" data-testid="link-footer-faq">FAQ</a><a href="/roadmap" data-testid="link-footer-roadmap">Roadmap</a><a href={CONTACT_EMAIL} data-testid="link-footer-email"><Mail size={14} /> Email us</a></div>
+            <div className="footer-brand"><a href="#home" className="brand" data-testid="link-footer-home"><BrandMark size={34} className="brand-mark" /><span className="brand-name">StudyBuddy <b>AI</b></span></a><p>Study sheets, flashcards, and a USMLE-style QBank for medical students.</p></div>
+            <div><h4>Product</h4><a href="#tools" data-testid="link-footer-tools">Tools</a><a href="#film" data-testid="link-footer-demo">Demo</a><a href="#pricing" data-testid="link-footer-pricing">Pricing</a></div>
+            <div><h4>Resources</h4><a href="#faq" data-testid="link-footer-faq">FAQ</a><a href={CONTACT_EMAIL} data-testid="link-footer-email"><Mail size={14} /> Email us</a></div>
             <div><h4>Connect</h4><a href={SOCIALS.instagram} target="_blank" rel="noopener noreferrer" data-testid="link-footer-instagram"><Instagram size={14} /> Instagram</a><a href={SOCIALS.linkedin} target="_blank" rel="noopener noreferrer" data-testid="link-footer-linkedin"><Linkedin size={14} /> LinkedIn</a><a href={SOCIALS.telegram} target="_blank" rel="noopener noreferrer" data-testid="link-footer-telegram"><Send size={14} /> Telegram</a></div>
           </div>
-          <div className="footer-bottom"><span>© {new Date().getFullYear()} StudyBuddy AI</span><span>Built by medical students, for medical students · Gaza</span><span className="footer-status"><span />Made for the next exam</span></div>
+          <div className="footer-bottom"><span>© {new Date().getFullYear()} StudyBuddy AI</span><span>Built in Gaza, for medical students across MENA</span></div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/** A study sheet as the Sheets page renders it — the hero shows the real output, not a mock question. */
+function SheetPreview() {
+  return (
+    <div className="sheet-preview" role="img" aria-label="A StudyBuddy study sheet on warfarin, with an overview, key points and cited sources">
+      <div className="sheet-preview-head">
+        <div>
+          <h3>Warfarin</h3>
+          <span className="sheet-preview-meta">Pharmacology · Step 1 · High-yield</span>
+        </div>
+        <span className="sheet-preview-chip"><Stethoscope size={13} /> Deep dives</span>
+      </div>
+      <div className="sheet-preview-section">
+        <span className="sheet-preview-label"><BookOpen size={13} /> Overview</span>
+        <p><b>Mechanism:</b> inhibits vitamin K epoxide reductase — blocks γ-carboxylation of factors II, VII, IX and X.</p>
+      </div>
+      <div className="sheet-preview-section">
+        <span className="sheet-preview-label"><Sparkles size={13} /> Key points</span>
+        <ul>
+          <li>Monitor with <b>PT/INR</b> (target 2–3 for most indications)</li>
+          <li>Reverse with <b>vitamin K</b>; add PCC if bleeding</li>
+          <li>Teratogenic — avoid in pregnancy</li>
+        </ul>
+      </div>
+      <div className="sheet-preview-sources">
+        <span><BookOpen size={12} /> PubMed · Warfarin drug and food interactions</span>
+        <span><FileText size={12} /> Katzung · Ch. 34 Anticoagulants</span>
+      </div>
+    </div>
+  );
+}
+
+function DeepDivePreview() {
+  return (
+    <div className="sheet-preview sheet-preview-flat" role="img" aria-label="A sheet section opened into a deep dive on warfarin reversal">
+      <span className="sheet-preview-label"><Stethoscope size={13} /> Deep dive · Reversal</span>
+      <p className="deep-q">How do you reverse warfarin in a patient who is bleeding?</p>
+      <ul>
+        <li>Stop warfarin and give <b>IV vitamin K</b></li>
+        <li>Give <b>4-factor PCC</b> for immediate reversal</li>
+        <li>FFP only if PCC is unavailable</li>
+      </ul>
+      <div className="deep-actions">
+        <span><Layers size={12} /> Turn into flashcard</span>
+        <span><Target size={12} /> Practice in QBank</span>
+      </div>
+    </div>
+  );
+}
+
+function SourcesPreview() {
+  return (
+    <div className="sheet-preview sheet-preview-flat" role="img" aria-label="The sources block at the end of a sheet, listing a PubMed paper and a textbook chapter">
+      <span className="sheet-preview-label"><FileText size={13} /> Sources</span>
+      <ol className="source-list">
+        <li><b>PubMed</b> · Systematic overview of warfarin and its drug and food interactions <ArrowUpRight size={12} /></li>
+        <li><b>PubMed</b> · Reversal of vitamin K antagonists <ArrowUpRight size={12} /></li>
+        <li><b>Katzung</b> · Basic &amp; Clinical Pharmacology, Ch. 34</li>
+      </ol>
+      <div className="source-warning"><Shield size={13} /> Not in our library? The sheet tells you, so you know to check.</div>
     </div>
   );
 }

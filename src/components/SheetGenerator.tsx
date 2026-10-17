@@ -25,6 +25,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { topicRejectionMessage, validateTopic } from "@/lib/validate-topic";
 import OutputSection, { type CitationState } from "@/components/OutputSection";
 import type { GenerationStatus } from "@/components/SheetProgress";
 import SaveButton from "@/components/SaveButton";
@@ -345,6 +346,14 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
     const activeNotes = overrideNotes ?? notes;
     if (!activeNotes.trim()) {
       toast({ title: "Please enter medical notes", variant: "destructive" });
+      return;
+    }
+    // A typed topic gets the same structural check as a deck's ("kkkk",
+    // keyboard mash). Pasted notes are long and go straight through; whether
+    // well-formed text is medical is the server classifier's call.
+    const rejection = activeNotes.length <= 300 ? validateTopic(activeNotes) : null;
+    if (rejection) {
+      toast({ title: "Not a medical topic", description: topicRejectionMessage(rejection), variant: "destructive" });
       return;
     }
     if (isSheetLimited) {
@@ -683,6 +692,8 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
       // laid out from a plan that never got its content.
       if (revealedCount === 0) setSheet(null);
       setLoading(false);
+      // A declined or failed sheet is refunded server-side; show the count back.
+      refreshUsage();
       toast({
         title: "Error",
         description: e instanceof Error && e.message ? e.message : "Failed to generate study material",
@@ -1306,6 +1317,19 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
         </PopoverContent>
       </Popover>
 
+      {/* Export stands apart from the other actions: it is what most students
+          come back to the sheet for. */}
+      <button
+        type="button"
+        onClick={exportPdf}
+        disabled={loading}
+        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+      >
+        <FileDown className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Export PDF / Word</span>
+        <span className="sm:hidden">Export</span>
+      </button>
+
       {/* Keyed per sheet, so a new sheet starts unsaved. */}
       <SaveButton
         key={generationId}
@@ -1345,10 +1369,6 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
             Practice QBank
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={exportPdf} disabled={loading}>
-            <FileDown className="mr-2 h-4 w-4" />
-            Export PDF or Word
-          </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleShare} disabled={loading}>
             <Share2 className="mr-2 h-4 w-4" />
             Share
@@ -1442,7 +1462,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
                     input={activeSettings.notes}
                     status={generationStatus}
                     plan={planned ? resolvePlan(readingSheet) : null}
-                    model={modelUsed}
+                    model={pro ? modelUsed : undefined}
                   />
                 </m.div>
               )}
@@ -1458,7 +1478,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
                   modeInfo={activeModeInfo}
                   citations={citations}
                   citationState={citationState}
-                  modelUsed={modelUsed}
+                  modelUsed={pro ? modelUsed : undefined}
                   isPro={pro}
                   userId={user?.id ?? null}
                   isAnonymous={isAnonymous ?? false}

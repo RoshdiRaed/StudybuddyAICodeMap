@@ -36,7 +36,7 @@ interface AppNavProps {
 const navItems = [
   { to: "/", label: "Home", icon: LayoutDashboard },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/roadmap", label: "Roadmap", icon: MapIcon },
+  { to: "/roadmap", label: "Topics", icon: MapIcon },
   { to: "/sheets", label: "Sheets", icon: FileText },
   { to: "/flashcards", label: "Flashcards", icon: Layers },
   { to: "/qbank", label: "QBank", icon: FlaskConical },

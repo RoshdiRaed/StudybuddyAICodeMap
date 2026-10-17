@@ -33,8 +33,13 @@ const MARKUP_RE = /<\/?[a-zA-Z][^>]*>|javascript:|on(?:error|load|click|mouseove
 
 const LETTER_RE = /\p{L}/u;
 
-/** One short unit (1-4 characters) repeated to fill the string: "aaaaaa", "abcabcabc". */
+/**
+ * One short unit (1-4 characters) repeated to fill the string: "aaaaaa",
+ * "abcabcabc". A single letter held down is caught from three ("kkk", "kkkk");
+ * no topic is one letter repeated.
+ */
 function isRepetitive(compact: string): boolean {
+  if (compact.length >= 3 && /^(.)\1+$/u.test(compact)) return true;
   if (compact.length < 6) return false;
   for (let unit = 1; unit <= 4; unit++) {
     const piece = compact.slice(0, unit);

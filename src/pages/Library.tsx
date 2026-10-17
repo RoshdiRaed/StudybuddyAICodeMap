@@ -338,6 +338,7 @@ const Library = () => {
                 output={activeSheet.output}
                 inputText={activeSheet.input}
                 modeInfo={activeSheet.modeInfo}
+                savedId={activeSheet.id}
                 personal={
                   activeLayer
                     ? {

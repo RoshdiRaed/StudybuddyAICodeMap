@@ -54,101 +54,6 @@ const StepRail = ({ current }: { current: number }) => (
   </ol>
 );
 
-/** The idle pane's specimen: a real two-sided card the reader can flip. */
-const CardPreview = ({
-  card,
-}: {
-  card: { isSample: boolean; question: string; answer: string; answerHead?: string; topic: string };
-}) => {
-  const [flipped, setFlipped] = useState(false);
-  const faceChip =
-    "inline-flex w-fit items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]";
-  return (
-    <section aria-labelledby="fc-preview-heading" className="animate-fade-in">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="fc-preview-heading" className="font-display text-2xl font-medium tracking-[-0.01em] text-foreground">
-          {card.isSample ? "What a card looks like" : "Your latest card"}
-        </h2>
-        {card.isSample ? (
-          <span className="shrink-0 rounded-full border border-ring/50 px-3 py-0.5 text-xs font-medium text-[color:var(--color-accent-ink)]">
-            Example
-          </span>
-        ) : (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">From {card.topic}</span>
-        )}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setFlipped((v) => !v)}
-        aria-label={flipped ? "Show the question" : "Show the answer"}
-        className="perspective block w-full rounded-2xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        <span className={`flip-card-y-inner relative block h-[260px] sm:h-[280px] ${flipped ? "flipped" : ""}`}>
-          {/* Front — the vignette, set like a page rather than a form field. */}
-          <span
-            aria-hidden={flipped}
-            className="flip-face absolute inset-0 flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8"
-          >
-            <span className={`${faceChip} bg-secondary text-muted-foreground`}>Question</span>
-            <span className="mt-4 line-clamp-5 font-display text-lg leading-snug text-foreground sm:text-xl">
-              {card.question}
-            </span>
-            <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[11px] text-muted-foreground">
-              <RotateCcw className="h-3 w-3" aria-hidden />
-              Tap to turn the card
-            </span>
-          </span>
-          {/* Back — the answer leads, the reason follows. */}
-          <span
-            aria-hidden={!flipped}
-            className="flip-face flip-face-back absolute inset-0 flex flex-col rounded-2xl border border-ring/20 bg-card p-6 shadow-sm sm:p-8"
-          >
-            <span className="pointer-events-none absolute inset-0 rounded-2xl bg-ring/[0.06]" aria-hidden />
-            <span className={`${faceChip} relative bg-ring/10 text-[color:var(--color-accent-ink)]`}>Answer</span>
-            {card.answerHead ? (
-              <>
-                <span className="relative mt-4 font-display text-2xl leading-tight text-foreground sm:text-3xl">
-                  {card.answerHead}
-                </span>
-                <span className="relative mt-3 text-sm leading-relaxed text-muted-foreground">{card.answer}</span>
-              </>
-            ) : (
-              <span className="relative mt-4 line-clamp-6 font-display text-lg leading-snug text-foreground sm:text-xl">
-                {card.answer}
-              </span>
-            )}
-          </span>
-        </span>
-      </button>
-
-      {/* Illustrative only — the live controls are in the review pane. They
-          wake up once the card is turned, which is when they would matter. */}
-      <div
-        className={`mt-4 grid grid-cols-4 gap-2 transition-opacity duration-300 ${flipped ? "opacity-100" : "opacity-45"}`}
-        aria-hidden="true"
-      >
-        {[
-          ["Again", "<1 min", "bg-danger-soft text-danger"],
-          ["Hard", "6 min", "bg-warning-soft text-warning"],
-          ["Good", "1 day", "bg-success-soft text-success"],
-          ["Easy", "4 days", "bg-info-soft text-info"],
-        ].map(([label, ivl, cls]) => (
-          <div
-            key={label}
-            className={`pointer-events-none flex h-14 select-none flex-col items-center justify-center rounded-xl text-sm font-semibold ${cls}`}
-          >
-            {label}
-            <span className="text-[11px] font-normal tabular-nums opacity-80">{ivl}</span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">
-        After each answer you rate your recall. The rating sets when the card comes back.
-      </p>
-    </section>
-  );
-};
 
 type RightPhase = "idle" | "generating" | "reviewing";
 
@@ -233,6 +138,7 @@ const Flashcards = () => {
   // The model behind the deck just generated, credited while that deck is studied.
   const [generatedDeck, setGeneratedDeck] = useState<{ topic: string; model: ModelUsed } | null>(null);
   const current = s.current;
+  const idle = !session && rightPhase === "idle";
 
   // Deck-level retrieval metadata (sources) for the card currently on screen,
   // not for the session as a whole: `session.topic` is "Today's review" or
@@ -264,33 +170,6 @@ const Flashcards = () => {
     return { totalDecks: latestByTopic.size, recentDeckCards: recent };
   }, [allCards]);
 
-  /**
-   * The card shown in the idle-state preview. Anonymous users and signed-in
-   * users with an empty library both fall back to a worked example rather than
-   * a skeleton, so the pane never looks like it is stuck loading.
-   */
-  const previewCard = useMemo(() => {
-    const newest = allCards.reduce<DeckCard | null>(
-      (best, c) => (!best || c.createdAt > best.createdAt ? c : best),
-      null
-    );
-    if (newest) {
-      return {
-        isSample: false,
-        question: newest.question,
-        answer: newest.answer,
-        topic: newest.topic || "Untitled",
-      };
-    }
-    return {
-      isSample: true,
-      question:
-        "A 58-year-old man has crushing chest pain radiating to the left arm. His ECG shows ST elevation in leads II, III and aVF. Which artery is occluded?",
-      answerHead: "Right coronary artery",
-      answer: "ST elevation in II, III and aVF localises to the inferior wall, which the RCA supplies in most patients.",
-      topic: "Cardiology",
-    };
-  }, [allCards]);
 
   // ── Session lifecycle ─────────────────────────────────────────────────
   const startSession = (cards: DeckCard[], topic: string) => {
@@ -531,6 +410,7 @@ const Flashcards = () => {
         onGeneratingChange={handleGeneratingChange}
         onGenerated={handleGenerated}
         onTopicChange={setDraftTopic}
+        wide={idle}
       />
     </div>
   );
@@ -788,14 +668,13 @@ const Flashcards = () => {
                   <button
                     type="button"
                     onClick={() => { setExplainScope("card"); setExplainOpen(true); }}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-info transition-colors"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-info/40 bg-info-soft px-4 text-sm font-semibold text-info transition-colors hover:border-info"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
                     Explain this card
                   </button>
                 </div>
                 <RatingButtons
-                  previews={s.previews}
                   onRate={handleRate}
                   disabled={slidePhase !== "idle"}
                 />
@@ -820,10 +699,6 @@ const Flashcards = () => {
       </div>
     ) : (
       <div key="idle" className="pane-crossfade space-y-6">
-        {/* The card you last added — or a worked example when there is
-            nothing to show yet, so the pane never reads as stuck loading. */}
-        <CardPreview card={previewCard} />
-
         {totalDecks > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -873,6 +748,14 @@ const Flashcards = () => {
 
         <StepRail current={session || rightPhase === "generating" ? 2 : draftTopic.trim() ? 1 : 0} />
 
+        {idle ? (
+          // Nothing under way: one column with the full width — the topic and
+          // its options first, then popular topics and your decks with room.
+          <div className="space-y-8">
+            {leftPaneContent}
+            {rightPaneContent}
+          </div>
+        ) : (
         <div className="flex flex-col gap-6 lg:flex-row lg:gap-0 lg:items-start">
           {/* ── Left pane: configurator / session status (drawer on tablet).
               On desktop it collapses to zero width so the right pane, which is
@@ -915,9 +798,11 @@ const Flashcards = () => {
             {rightPaneContent}
           </div>
         </div>
+        )}
       </div>
 
       {/* ── Tablet-only (768–1023px): floating configure button ── */}
+      {!idle && (
       <button
         type="button"
         onClick={() => setConfigDrawerOpen(true)}
@@ -926,6 +811,7 @@ const Flashcards = () => {
         <Settings2 className="h-3.5 w-3.5" />
         {session ? "Session" : "Configure"}
       </button>
+      )}
 
       {/* ── Tablet-only: slide-out left-pane drawer ── */}
       <div

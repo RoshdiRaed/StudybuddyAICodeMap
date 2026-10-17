@@ -121,10 +121,13 @@ const StudyMode = ({ dueCards, liveCards, onReview, settings, onClose }: StudyMo
         />
       </div>
 
-      {/* Close button */}
-      <div className="flex justify-end p-3">
-        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close study mode">
-          <X className="h-5 w-5" />
+      {/* The app's navigation is hidden while studying, so the way out is
+          spelled out rather than left to a lone ×. Progress is saved per card. */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <span className="text-xs text-muted-foreground">Studying · your progress is saved as you go</span>
+        <Button variant="outline" onClick={onClose} className="h-10 gap-1.5 rounded-full px-4">
+          <X className="h-4 w-4" />
+          End session
         </Button>
       </div>
 
@@ -236,7 +239,7 @@ const StudyMode = ({ dueCards, liveCards, onReview, settings, onClose }: StudyMo
                 <div className="flex items-center justify-center">
                   <button
                     onClick={() => { setExplainScope("topic"); setExplainOpen(true); }}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-info/40 bg-info-soft px-4 text-sm font-semibold text-info transition-colors hover:border-info"
                   >
                     <Layers className="h-3.5 w-3.5" />
                     Explain this question
@@ -255,14 +258,13 @@ const StudyMode = ({ dueCards, liveCards, onReview, settings, onClose }: StudyMo
                   </button>
                   <button
                     onClick={() => { setExplainScope("card"); setExplainOpen(true); }}
-                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-info/40 bg-info-soft px-4 text-sm font-semibold text-info transition-colors hover:border-info"
                   >
                     <BookOpen className="h-3.5 w-3.5" />
                     Explain this card
                   </button>
                 </div>
                 <RatingButtons
-                  previews={s.previews}
                   onRate={handleRate}
                   disabled={slidePhase !== "idle"}
                   compact

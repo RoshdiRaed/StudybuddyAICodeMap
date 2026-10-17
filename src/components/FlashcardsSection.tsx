@@ -29,6 +29,10 @@ const FlashcardsSection = ({ cards, content }: FlashcardsSectionProps) => {
         })
         .filter(({ q, a }) => q.length > 0 && a.length > 0);
 
+  if (resolvedCards.length === 0) {
+    return <p className="text-sm text-muted-foreground">No flashcards for this sheet.</p>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">

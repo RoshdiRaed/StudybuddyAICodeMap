@@ -37,6 +37,8 @@ interface FlashcardsGeneratorProps {
   onGenerated?: (cards: GeneratedCard[], topic: string, model: ModelUsed | null) => void;
   /** The topic as typed, so the page's step rail can move on from "Pick a topic". */
   onTopicChange?: (topic: string) => void;
+  /** The page has the full width: options sit beside the topic and topics lay out as a grid. */
+  wide?: boolean;
 }
 
 const RECENT_FLASHCARD_TOPICS_KEY = "sb_recent_flashcard_topics_v1";
@@ -123,7 +125,7 @@ function Segmented({
   );
 }
 
-const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange }: FlashcardsGeneratorProps) => {
+const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange, wide = false }: FlashcardsGeneratorProps) => {
   const [topic, setTopic] = useState("");
   const [cardCount, setCardCount] = useState("12");
   // Board-style is the page's own promise ("a deck of vignette cards"); the
@@ -495,6 +497,9 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange }:
 
   return (
     <div className="animate-fade-in space-y-4">
+      {/* Topic, then the options — both before anything else, so the student
+          sees what the deck will be before they press the button. */}
+      <div className={wide ? "grid gap-4 lg:grid-cols-2 lg:items-start" : "space-y-4"}>
       {/* ── Medical topic ── */}
       <section aria-labelledby="fc-topic-heading" className={panel}>
         <h2 id="fc-topic-heading" className="font-display text-xl font-medium tracking-[-0.01em] text-foreground">
@@ -542,77 +547,6 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange }:
           </p>
         )}
 
-        <p className="mb-2 mt-5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Popular topics
-        </p>
-        <ul className="-mx-2 space-y-0.5">
-          {POPULAR_TOPICS.map(({ label, short, category }, i) => {
-            const picked = trimmedTopic.toLowerCase() === label.toLowerCase();
-            return (
-              <li key={label}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTopic(label);
-                    setTopicError(null);
-                  }}
-                  aria-pressed={picked}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-start transition-colors ${
-                    picked ? "bg-ring/10" : "hover:bg-secondary/60"
-                  }`}
-                >
-                  {/* Alternating tint keeps a column of round chips from reading
-                      as one grey stripe. */}
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tracking-tight transition-colors ${
-                      picked
-                        ? "bg-[color:var(--color-accent-ink)] text-[color:var(--color-accent-foreground)]"
-                        : i % 2 === 0
-                        ? "bg-ring/10 text-[color:var(--color-accent-ink)]"
-                        : "bg-secondary text-muted-foreground"
-                    }`}
-                    aria-hidden
-                  >
-                    {picked ? <Check className="h-4 w-4" /> : short}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-foreground">{label}</span>
-                    <span className="block text-[11px] text-muted-foreground">{category}</span>
-                  </span>
-                  <ChevronRight
-                    className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 rtl:rotate-180"
-                    aria-hidden
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {recentTopics.length > 0 && (
-          <div className="mt-5 border-t border-border pt-4">
-            <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              <History className="h-3 w-3" aria-hidden />
-              Recent · one tap to regenerate
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {recentTopics.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setTopic(t);
-                    handleGenerate(t);
-                  }}
-                  className="max-w-full truncate rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-ring hover:text-[color:var(--color-accent-ink)] disabled:cursor-default disabled:opacity-50"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
       </section>
 
       {/* ── Shape the deck ── always open: three short rows are cheaper than
@@ -644,6 +578,7 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange }:
           />
         </div>
       </section>
+      </div>
 
       {/* ── Generate ── names what it is about to do, so the panels above
           read as a sentence the button finishes. */}
@@ -736,6 +671,78 @@ const FlashcardsGenerator = ({ onGeneratingChange, onGenerated, onTopicChange }:
           </div>
         )}
       </div>
+
+      {/* ── Popular topics ── a grid with room to read, not a narrow side list. */}
+      <section aria-labelledby="fc-popular-heading" className={panel}>
+        <h2 id="fc-popular-heading" className="font-display text-xl font-medium tracking-[-0.01em] text-foreground">
+          Popular topics
+        </h2>
+        <ul className={`mt-4 grid gap-3 ${wide ? "sm:grid-cols-2 lg:grid-cols-3" : ""}`}>
+          {POPULAR_TOPICS.map(({ label, short, category }, i) => {
+            const picked = trimmedTopic.toLowerCase() === label.toLowerCase();
+            return (
+              <li key={label}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTopic(label);
+                    setTopicError(null);
+                  }}
+                  aria-pressed={picked}
+                  className={`group flex w-full items-center gap-3 rounded-xl border p-4 text-start transition-colors ${
+                    picked ? "border-ring bg-ring/10" : "border-border hover:border-ring/60 hover:bg-secondary/60"
+                  }`}
+                >
+                  <span
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold tracking-tight transition-colors ${
+                      picked
+                        ? "bg-[color:var(--color-accent-ink)] text-[color:var(--color-accent-foreground)]"
+                        : i % 2 === 0
+                        ? "bg-ring/10 text-[color:var(--color-accent-ink)]"
+                        : "bg-secondary text-muted-foreground"
+                    }`}
+                    aria-hidden
+                  >
+                    {picked ? <Check className="h-4 w-4" /> : short}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">{label}</span>
+                    <span className="block text-xs text-muted-foreground">{category}</span>
+                  </span>
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground rtl:rotate-180"
+                    aria-hidden
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {recentTopics.length > 0 && (
+          <div className="mt-5 border-t border-border pt-4">
+            <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              <History className="h-3 w-3" aria-hidden />
+              Recent · one tap to regenerate
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {recentTopics.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => {
+                    setTopic(t);
+                    handleGenerate(t);
+                  }}
+                  className="max-w-full truncate rounded-full border border-border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-ring hover:text-[color:var(--color-accent-ink)] disabled:cursor-default disabled:opacity-50"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
 
       {citationState !== "idle" && citationState !== "hidden" && (
         <CitationBadgeList

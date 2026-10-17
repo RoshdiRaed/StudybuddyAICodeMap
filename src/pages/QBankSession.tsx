@@ -1266,23 +1266,22 @@ const QBankSession = () => {
                 </div>
               )}
 
+              {/* The whole question in one block: stem, any image, and the
+                  answers beneath it — read as a single item, not three cards. */}
               <div
                 style={{
                   border: "1px solid var(--border)",
-                  borderLeft: "3px solid var(--accent)",
-                  borderRadius: "var(--radius-md)",
+                  borderRadius: "var(--radius-lg)",
                   background: "var(--bg-elevated)",
-                  padding: "20px 20px 24px",
+                  padding: "24px 24px 20px",
+                  boxShadow: "var(--shadow-1, 0 1px 2px rgba(0,0,0,0.04))",
                 }}
               >
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <p style={MONO_EYEBROW}>Clinical vignette</p>
-                  {inSession && (
-                    <p className="hidden text-[10px] sm:block" style={{ color: "var(--fg-subtle)" }}>
-                      Select text to highlight
-                    </p>
-                  )}
-                </div>
+                {inSession && (
+                  <p className="mb-3 hidden text-end text-[10px] sm:block" style={{ color: "var(--fg-subtle)" }}>
+                    Select text to highlight
+                  </p>
+                )}
                 <HighlightableText
                   text={q.question_text}
                   ranges={highlights}
@@ -1295,33 +1294,31 @@ const QBankSession = () => {
                     color: "var(--fg)",
                   }}
                 />
-              </div>
 
-              {q.media && q.media.length > 0 && (
-                <MediaBlock media={q.media} context="stem" onOpen={openLightbox} />
-              )}
+                {q.media && q.media.length > 0 && (
+                  <div className="mt-4">
+                    <MediaBlock media={q.media} context="stem" onOpen={openLightbox} />
+                  </div>
+                )}
 
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-                <span style={{ ...MONO_EYEBROW, letterSpacing: "0.1em" }}>
+                <p className="mt-6 mb-3" style={{ ...MONO_EYEBROW, letterSpacing: "0.1em" }}>
                   {mode === "timed" && inSession ? "Choose one answer — you can change it" : "Select one answer"}
-                </span>
-                <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-              </div>
+                </p>
 
-              <div className="space-y-2.5">
-                {OPTION_KEYS.map((key) => (
-                  <OptionTile
-                    key={key}
-                    letter={key}
-                    text={q[`option_${key}` as const]}
-                    explanation={showExplanation ? q.distractor_explanations?.[key] : undefined}
-                    answerState={answerState}
-                    struck={struckKeys.includes(key)}
-                    onToggleStrike={canMark ? (k) => toggleStrike(q.id, k) : undefined}
-                    onSelect={handleSelect}
-                  />
-                ))}
+                <div className="space-y-2.5">
+                  {OPTION_KEYS.map((key) => (
+                    <OptionTile
+                      key={key}
+                      letter={key}
+                      text={q[`option_${key}` as const]}
+                      explanation={showExplanation ? q.distractor_explanations?.[key] : undefined}
+                      answerState={answerState}
+                      struck={struckKeys.includes(key)}
+                      onToggleStrike={canMark ? (k) => toggleStrike(q.id, k) : undefined}
+                      onSelect={handleSelect}
+                    />
+                  ))}
+                </div>
               </div>
 
               {inSession && (

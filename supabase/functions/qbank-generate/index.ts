@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { topicRejectionMessage, validateTopic } from "../_shared/validate-topic.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
 import {
   cortiConfigFromEnv,
@@ -124,7 +125,7 @@ const json = (body: unknown, status: number) =>
 async function resolveSystem(
   config: ReturnType<typeof cortiConfigFromEnv>,
   topic: string
-): Promise<{ system: SystemKey; confidence: number | null }> {
+): Promise<{ system: SystemKey; confidence: number | null; notMedical?: boolean }> {
   try {
     const raw = await cortiComplete(config, {
       model: config.routerModel,
@@ -138,6 +139,11 @@ async function resolveSystem(
     });
 
     const parsed = JSON.parse(raw.replace(/^```(?:json)?\s*/i, "").replace(/```$/, "").trim());
+    // Not a medical topic: the set is declined rather than written about
+    // "kkkk". A failed call never lands here — the router fails open.
+    if (parsed?.system === "not_medical") {
+      return { system: "cardiovascular", confidence: null, notMedical: true };
+    }
     if (SYSTEM_KEYS.includes(parsed?.system)) {
       const confidence = typeof parsed.confidence === "number" ? parsed.confidence : null;
       return { system: parsed.system as SystemKey, confidence };
@@ -187,6 +193,10 @@ serve(async (req) => {
     const requested = Number(body?.count) || DEFAULT_COUNT;
     const waveCount = Math.min(Math.max(1, Math.round(requested)), MAX_WAVE_COUNT);
     const cleanTopic = topic.trim().slice(0, 300);
+    const rejection = validateTopic(cleanTopic);
+    if (rejection) {
+      return json({ error: topicRejectionMessage(rejection), code: "invalid_topic" }, 400);
+    }
     const waveStart = Math.max(1, Math.round(Number(body?.startIndex) || 1));
 
     // Capped and de-duplicated: this goes into the prompt, and a set that has
@@ -217,6 +227,16 @@ serve(async (req) => {
     const routed = SYSTEM_KEYS.includes(requestedSystem)
       ? { system: requestedSystem as SystemKey, confidence: null }
       : await resolveSystem(config, cleanTopic);
+    if (routed.notMedical) {
+      log("topic_declined", { topicLength: cleanTopic.length });
+      return json(
+        {
+          error: "That doesn't look like a medical topic. Try something like “heart failure” or “DKA”.",
+          code: "not_medical_topic",
+        },
+        422
+      );
+    }
     const system = routed.system;
 
     // Unknown or absent values fall back to the default rather than 400ing:

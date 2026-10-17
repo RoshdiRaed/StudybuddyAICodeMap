@@ -1,3 +1,4 @@
+import { validateTopic } from "@/lib/validate-topic";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -62,13 +63,6 @@ const SYSTEM_EMOJI = [
 const systemEmoji = (system: string) =>
   SYSTEM_EMOJI.find(({ test }) => test.test(system.toLowerCase()))?.emoji ??
   "🩺";
-
-/** Yield tier drives emphasis — the curriculum already ranks its own topics. */
-const TIER_LABEL: Record<string, string> = {
-  high: "High yield",
-  medium: "Core",
-  low: "Extra",
-};
 
 /** Progress reads as a glyph rather than a coloured dot — same three states. */
 const STATE_STYLE: Record<TopicState, { emoji: string; label: string }> = {
@@ -145,11 +139,11 @@ const Roadmap = () => {
     <DashboardLayout wide>
       <div className="ds-stack">
         <header>
-          <p className="ds-label ds-label-accent">Curriculum</p>
-          <h1 className="ds-display mt-2">Roadmap</h1>
+          <p className="ds-label ds-label-accent">Curriculum checklist</p>
+          <h1 className="ds-display mt-2">Topics</h1>
           <p className="ds-subtitle mt-2.5 max-w-[54ch]">
-            Every high-yield topic, by system — and which ones you've already
-            covered.
+            Every topic in the curriculum, by system — and which ones you've
+            already covered.
           </p>
         </header>
 
@@ -158,7 +152,7 @@ const Roadmap = () => {
         ) : topicsQuery.isError ? (
           <div className="ds-card text-center">
             <p className="ds-body font-medium text-foreground">
-              Couldn't load the roadmap
+              Couldn't load the topics
             </p>
             <p className="ds-small mt-1">Check your connection and try again.</p>
             <Button
@@ -179,7 +173,7 @@ const Roadmap = () => {
               Curriculum loading soon
             </p>
             <p className="ds-small mx-auto mt-1 max-w-[42ch]">
-              High-yield topics are on their way. Meanwhile you can generate a
+              Curriculum topics are on their way. Meanwhile you can generate a
               sheet on any topic you like.
             </p>
           </div>
@@ -201,7 +195,9 @@ const Roadmap = () => {
               <div className="relative w-full sm:max-w-xs">
                 <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
-                  type="search"
+                  type="text"
+                  inputMode="search"
+                  enterKeyHint="search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search all topics…"
@@ -227,7 +223,9 @@ const Roadmap = () => {
                 <p className="ds-label mb-3">
                   {results.length} {results.length === 1 ? "match" : "matches"}
                 </p>
-                {results.length === 0 ? (
+                {results.length === 0 && validateTopic(query) ? (
+                  <p className="ds-small">No topic matches “{query}”. Check the spelling and try again.</p>
+                ) : results.length === 0 ? (
                   <p className="ds-small">
                     No topic matches “{query}”. You can still generate a sheet on
                     it —{" "}
@@ -246,7 +244,6 @@ const Roadmap = () => {
                       <TopicRow
                         key={topic.id}
                         title={topic.title}
-                        tier={topic.yield_tier}
                         system={system}
                         progress={progress.get(topic.title)}
                         onOpen={() => openSheet(topic.title)}
@@ -334,7 +331,6 @@ const Roadmap = () => {
                           <TopicRow
                             key={topic.id}
                             title={topic.title}
-                            tier={topic.yield_tier}
                             progress={progress.get(topic.title)}
                             onOpen={() => openSheet(topic.title)}
                           />
@@ -358,13 +354,11 @@ const Roadmap = () => {
  */
 const TopicRow = ({
   title,
-  tier,
   system,
   progress,
   onOpen,
 }: {
   title: string;
-  tier: string | null;
   system?: string;
   progress?: { state: TopicState; cards: number };
   onOpen: () => void;
@@ -410,13 +404,6 @@ const TopicRow = ({
             )}
           </span>
         </span>
-
-        {tier === "high" && (
-          <span className="ds-label shrink-0 rounded-[var(--r-sm)] border border-warning/40 px-1.5 py-0.5 text-warning">
-            <span aria-hidden="true">🔥 </span>
-            {TIER_LABEL.high}
-          </span>
-        )}
 
         <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
       </button>

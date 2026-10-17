@@ -1,221 +1,473 @@
-import { useEffect, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  FileText,
-  FlaskConical,
-  Flame,
-  Layers,
-  LockKeyhole,
-  Sparkles,
-  Stethoscope,
-} from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import "./dashboard.css"
+import {
+  ArrowRight,
+  ChevronRight,
+  FileText,
+  Flame,
+  FlaskConical,
+  Layers,
+  ListChecks,
+  LogIn,
+} from "lucide-react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import BrandMark from "@/components/brand/BrandMark";
-type StatValueProps = {
+import AuthModal from "@/components/AuthModal";
+import { QBankHistory } from "@/components/qbank/QBankHistory";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/use-auth";
+import { useStudyHistory } from "@/hooks/use-study-history";
+import { useFlashcardDeck } from "@/hooks/use-flashcard-deck";
+import {
+  WINDOW_DAYS,
+  computeStreak,
+  dayKey,
+  useDashboardStats,
+  type Difficulty,
+  type Rating,
+} from "@/hooks/use-dashboard-stats";
+import { formatRelative } from "@/lib/qbank-format";
+
+/** One saved sheet a day — the goal the Sheets ring is drawn against. */
+const WEEKLY_SHEET_GOAL = 7;
+
+type Detail = "sheets" | "flashcards" | "qbank" | null;
+
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+/** A progress ring with the number written in the middle. */
+function Ring({ value, label, tone }: { value: number; label: string; tone: string }) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative h-24 w-24 shrink-0">
+      <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-border" />
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - clamped / 100)}
+          className={`${tone} transition-[stroke-dashoffset] duration-700 motion-reduce:transition-none`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-lg font-semibold tabular-nums text-foreground">{clamped}%</span>
+        <span className="text-[10px] text-muted-foreground">{label}</span>
+      </div>
+    </div>
+  );
+}
+
+/** A labelled horizontal bar: how much is done, how much is left. */
+function Bar({ label, value, total, tone }: { label: string; value: number; total: number; tone: string }) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-foreground">{label}</span>
+        <span className="tabular-nums text-muted-foreground">
+          {value} / {total}
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-border">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct(value, total)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function StatBox({
+  icon,
+  value,
+  label,
+  hint,
+  onClick,
+}: {
+  icon: ReactNode;
   value: ReactNode;
   label: string;
-  icon: ReactNode;
-  tone: "teal" | "warm" | "slate";
-  testId: string;
-};
-
-function StatValue({ value, label, icon, tone, testId }: StatValueProps) {
-  return (
-    <div className="dashboard-stat" data-testid={testId}>
-      <span className={`dashboard-stat-icon dashboard-stat-icon-${tone}`}>{icon}</span>
-      <div>
-        <div className="dashboard-stat-value">{value}</div>
-        <div className="dashboard-stat-label">{label}</div>
+  hint?: string;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-primary">{icon}</span>
+      <div className="min-w-0 flex-1 text-start">
+        <div className="text-2xl font-semibold tabular-nums leading-none text-foreground">{value}</div>
+        <div className="mt-1 text-xs text-muted-foreground">{label}</div>
       </div>
-    </div>
+      {onClick && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+    </>
+  );
+  const cls =
+    "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-colors";
+  if (!onClick) return <div className={cls}>{body}</div>;
+  return (
+    <button type="button" onClick={onClick} className={`${cls} hover:border-primary`} aria-label={hint ?? label}>
+      {body}
+    </button>
   );
 }
 
-type ToolCardProps = {
+function ToolCard({
+  icon,
+  title,
+  line,
+  progress,
+  queue,
+  secondary,
+  primary,
+}: {
   icon: ReactNode;
   title: string;
-  description: string;
-  stat: ReactNode;
-  href: string;
-  featured?: boolean;
-  testId: string;
-};
-
-function ToolCard({ icon, title, description, stat, href, featured = false, testId }: ToolCardProps) {
+  line: ReactNode;
+  progress?: number;
+  queue: ReactNode;
+  secondary: { label: string; to: string };
+  primary: { label: string; to: string };
+}) {
   return (
-    <Link
-      to={href}
-      className={`dashboard-tool-card ${featured ? "dashboard-tool-card-featured" : ""}`}
-      data-testid={testId}
-    >
-      <div className="dashboard-tool-content">
-        <span className="dashboard-tool-icon">{icon}</span>
-        <div className="dashboard-tool-kicker">{featured ? "Recommended starting point" : "Study tool"}</div>
-        <h3>{title}</h3>
-        <p>{description}</p>
+    <article className="flex flex-col rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground">{icon}</span>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
       </div>
-      <div className="dashboard-tool-footer">
-        <span className="dashboard-tool-stat">{stat}</span>
-        <span className="dashboard-tool-open">Open <ArrowRight size={14} /></span>
+      <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground">
+        <span className="min-w-0 truncate">{line}</span>
+        {progress !== undefined && <span className="shrink-0 tabular-nums text-muted-foreground">{progress}%</span>}
       </div>
-    </Link>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-border">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${progress ?? 0}%` }} />
+      </div>
+      <p className="mt-3 flex-1 text-sm text-muted-foreground">{queue}</p>
+      <div className="mt-5 flex gap-2.5">
+        <Link
+          to={secondary.to}
+          className="flex h-11 flex-1 items-center justify-center rounded-full border border-border text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+        >
+          {secondary.label}
+        </Link>
+        <Link
+          to={primary.to}
+          className="flex h-11 flex-1 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          {primary.label}
+        </Link>
+      </div>
+    </article>
   );
 }
 
-function ComingSoonCard() {
-  return (
-    <div className="dashboard-tool-card dashboard-tool-card-disabled" data-testid="card-tool-clinical-cases">
-      <div className="dashboard-tool-content">
-        <div className="dashboard-tool-topline">
-          <span className="dashboard-tool-icon"><Stethoscope size={18} /></span>
-          <span className="dashboard-coming-soon"><LockKeyhole size={10} /> Coming soon</span>
-        </div>
-        <div className="dashboard-tool-kicker">Next on the roadmap</div>
-        <h3>Clinical Cases</h3>
-        <p>Train for OSCE exams with history, examination, investigations, and management in one flow.</p>
-      </div>
-      <div className="dashboard-tool-footer">
-        <span className="dashboard-tool-stat">In development</span>
-      </div>
-    </div>
-  );
-}
+const RATING_ROWS: { key: Rating; label: string; tone: string }[] = [
+  { key: "again", label: "Again — forgot", tone: "bg-danger" },
+  { key: "hard", label: "Hard", tone: "bg-warning" },
+  { key: "good", label: "Good", tone: "bg-success" },
+  { key: "easy", label: "Easy", tone: "bg-info" },
+];
 
-function DashboardHeader() {
-  const navigate = useNavigate();
-  return (
-    <header className="dashboard-header">
-      <div className="dashboard-header-inner">
-        <button type="button" className="dashboard-back-link" onClick={() => navigate("/")} data-testid="button-dashboard-home">
-          <ArrowLeft size={15} />
-          <BrandMark size={26} />
-          <span>StudyBuddy <b>AI</b></span>
-        </button>
-        <div className="dashboard-header-meta">
-          <span className="dashboard-online-dot" />
-          <span>Student workspace</span>
-          <span className="dashboard-avatar" aria-label="Guest account">G</span>
-        </div>
-      </div>
-    </header>
-  );
-}
+const DIFFICULTY_ROWS: { key: Difficulty; tone: string }[] = [
+  { key: "Easy", tone: "bg-success" },
+  { key: "Medium", tone: "bg-warning" },
+  { key: "Hard", tone: "bg-danger" },
+];
 
 function Dashboard() {
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [isAnonymous] = useState(true);
+  const navigate = useNavigate();
+  const { isAnonymous, user } = useAuth();
+  const isGuest = !user || isAnonymous;
+  const [detail, setDetail] = useState<Detail>(null);
+  const [authOpen, setAuthOpen] = useState(false);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setStatsLoading(false), 520);
-    return () => window.clearTimeout(timeout);
-  }, []);
+  const { history } = useStudyHistory();
+  const { stats: deck, today } = useFlashcardDeck();
+  const { stats, isLoading } = useDashboardStats();
 
-  const anonymousMessage = (
-    <span className="dashboard-stat-muted">Sign in to track</span>
-  );
-  const sheetStat = statsLoading ? <span className="dashboard-stat-loading" aria-label="Loading">•••</span> : (
-    <><strong>0</strong> sheets this week</>
-  );
-  const flashcardStat = statsLoading ? <span className="dashboard-stat-loading" aria-label="Loading">•••</span> : (
-    isAnonymous ? anonymousMessage : <><strong>0</strong> cards due today</>
-  );
-  const qbankStat = statsLoading ? <span className="dashboard-stat-loading" aria-label="Loading">•••</span> : (
-    <span className="dashboard-stat-muted">Any topic, on demand</span>
-  );
+  const now = Date.now();
+  const weekStart = now - WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const sheetsThisWeek = history.filter((h) => h.timestamp >= weekStart);
+
+  // Today's cards: what has been studied against what is still waiting. The
+  // study day turns over at 4 am, as the deck's own queue does.
+  const reviewedToday = today.newCards + today.reviews;
+  const cardsDone = stats ? stats.reviewsThisWeek : 0;
+  const dueNow = deck.due;
+
+  const activeDays = new Set(stats?.activeDays ?? []);
+  sheetsThisWeek.forEach((h) => activeDays.add(dayKey(h.timestamp)));
+  const streak = computeStreak(activeDays, now);
+
+  const qbank = stats?.qbank;
+  const accuracy = qbank ? pct(qbank.correct, qbank.answered) : 0;
+  const lastSet = stats?.unfinished[0];
+  const lastSetTotal = lastSet ? Math.max(lastSet.expected_total, lastSet.question_count) : 0;
+
+  const loading = <span className="text-muted-foreground">…</span>;
 
   return (
-  <>
-    <DashboardLayout >
-      {/* <DashboardHeader /> */}
-      <main className="dashboard-main">
-        <div className="dashboard-container">
-          <section className="dashboard-welcome" aria-labelledby="dashboard-title">
-            <div>
-              <div className="dashboard-eyebrow"><span className="dashboard-eyebrow-dot" /> Your study space</div>
-              <h1 id="dashboard-title">Make today’s study hour <em>count.</em></h1>
-              <p>Pick up where you left off, or start with a focused study sheet.</p>
-            </div>
-            <div className="dashboard-date" data-testid="text-dashboard-date">
-              <span>SESSION 01</span>
-              <strong>Ready when you are</strong>
-            </div>
-          </section>
+    <DashboardLayout>
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        {isGuest && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm">
+            <span className="flex-1 text-muted-foreground">
+              You're studying as a guest. Sign in to keep your progress and use the QBank.
+            </span>
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="flex h-10 items-center gap-2 rounded-full bg-primary px-4 font-semibold text-primary-foreground"
+            >
+              <LogIn className="h-4 w-4" /> Sign in
+            </button>
+          </div>
+        )}
 
-          <section className="dashboard-pro-banner" aria-label="StudyBuddy Pro offer" data-testid="banner-go-pro">
-            <div className="dashboard-pro-icon"><Sparkles size={17} className="text-white"/></div>
-            <div className="dashboard-pro-copy">
-              <strong>Unlock Corti + unlimited generations</strong>
-              <span>Go Pro for AI built for healthcare, and no limits.</span>
-            </div>
-            <button type="button" className="dashboard-pro-button text-white" onClick={() => window.location.href = "mailto:osama200az@gmail.com"} data-testid="button-go-pro">Go Pro</button>
-            <span className="dashboard-pro-dismiss" aria-hidden="true">×</span>
-          </section>
+        {/* This week, in numbers. Each box opens what it counts. */}
+        <section aria-labelledby="week-title">
+          <h1 id="week-title" className="mb-3 text-sm font-semibold text-foreground">
+            Last {WINDOW_DAYS} days
+          </h1>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatBox
+              icon={<FileText className="h-5 w-5" />}
+              value={sheetsThisWeek.length}
+              label="Sheets saved"
+              hint="Show the sheets saved in the last 7 days"
+              onClick={() => setDetail("sheets")}
+            />
+            <StatBox
+              icon={<Layers className="h-5 w-5" />}
+              value={isGuest ? deck.total : isLoading ? loading : cardsDone}
+              label={isGuest ? "Cards in your deck" : "Cards reviewed"}
+              hint="Show flashcard statistics"
+              onClick={() => setDetail("flashcards")}
+            />
+            <StatBox
+              icon={<FlaskConical className="h-5 w-5" />}
+              value={isGuest ? "—" : isLoading ? loading : (qbank?.answered ?? 0)}
+              label={isGuest ? "Sign in for the QBank" : "Questions answered"}
+              hint="Show QBank statistics and past sets"
+              onClick={isGuest ? () => setAuthOpen(true) : () => setDetail("qbank")}
+            />
+            <StatBox
+              icon={<Flame className="h-5 w-5" />}
+              value={streak}
+              label={streak === 1 ? "Day in a row" : "Days in a row"}
+            />
+          </div>
+        </section>
 
-          <section className="dashboard-progress-panel" aria-labelledby="progress-title">
-            <div className="dashboard-section-label" id="progress-title">Your progress</div>
-            <div className="dashboard-stats-grid">
-              <StatValue icon={<FileText size={17} />} tone="slate" value={sheetStat} label="" testId="stat-sheets-week" />
-              <StatValue icon={<Layers size={17} />} tone="teal" value={flashcardStat} label="" testId="stat-cards-due" />
-              <StatValue icon={<Flame size={17} />} tone="warm" value={statsLoading ? <span className="dashboard-stat-loading">•••</span> : <><strong>0</strong> days streak</>} label="" testId="stat-days-streak" />
-              <div className="dashboard-progress-note">
-                <BarChart3 size={14} />
-                <span>{statsLoading ? "Preparing your overview" : "A small session today keeps momentum going."}</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="dashboard-tools-section" aria-labelledby="tools-title">
-            <div className="dashboard-tools-heading">
+        {/* The same numbers as progress: what each ring is measured against is written under it. */}
+        <section aria-labelledby="summary-title" className="rounded-2xl border border-border bg-card p-5">
+          <h2 id="summary-title" className="mb-5 text-sm font-semibold text-foreground">
+            Your progress
+          </h2>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="flex items-center gap-4">
+              <Ring value={pct(sheetsThisWeek.length, WEEKLY_SHEET_GOAL)} label="of goal" tone="stroke-primary" />
               <div>
-                <div className="dashboard-section-label" id="tools-title">Tools · Study smarter</div>
-                <p>Everything you need, in one place</p>
+                <p className="text-sm font-semibold text-foreground">Weekly sheets</p>
+                <p className="text-xs text-muted-foreground">
+                  {sheetsThisWeek.length} of {WEEKLY_SHEET_GOAL} — goal: one a day
+                </p>
               </div>
-              <span className="dashboard-tools-count">03 active tools</span>
             </div>
-
-            <div className="dashboard-tools-grid">
-              <ToolCard
-                icon={<FileText size={19} />}
-                title="Study Sheet"
-                description="Generate a high-yield, exam-ready study sheet on any medical topic in seconds."
-                stat={sheetStat}
-                href="/sheets"
-                featured
-                testId="card-tool-study-sheet"
+            <div className="flex items-center gap-4">
+              <Ring
+                value={pct(reviewedToday, reviewedToday + dueNow)}
+                label="done"
+                tone="stroke-success"
               />
-              <ToolCard
-                icon={<Layers size={19} />}
-                title="Flashcards"
-                description="Build a spaced-repetition deck on any topic and drill until it sticks."
-                stat={flashcardStat}
-                href="/flashcards"
-                testId="card-tool-flashcards"
-              />
-              <ToolCard
-                icon={<FlaskConical size={19} />}
-                title="QBank"
-                description="USMLE-style questions written on demand for any topic, to NBME item-writing rules."
-                stat={qbankStat}
-                href="/qbank"
-                testId="card-tool-qbank"
-              />
-              <ComingSoonCard />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Today's cards</p>
+                <p className="text-xs text-muted-foreground">
+                  {dueNow === 0 && reviewedToday === 0
+                    ? "No cards due today"
+                    : `${dueNow} left to review today`}
+                </p>
+              </div>
             </div>
-          </section>
+            <div className="flex items-center gap-4">
+              <Ring value={accuracy} label="correct" tone="stroke-info" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">QBank accuracy</p>
+                <p className="text-xs text-muted-foreground">
+                  {isGuest
+                    ? "Sign in to practise questions"
+                    : qbank && qbank.answered > 0
+                    ? `${qbank.correct} of ${qbank.answered} correct this week`
+                    : "No questions answered this week"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
-          <section className="dashboard-footnote" aria-label="Study tip">
-            <CheckCircle2 size={16} />
-            <span><strong>Tip:</strong> start with a topic you found difficult today — the best next session is usually the one you almost put off.</span>
-          </section>
-        </div>
-      </main>
+        {/* The three tools, each with what is waiting in it. */}
+        <section aria-labelledby="tools-title">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 id="tools-title" className="text-sm font-semibold text-foreground">
+              Study tools
+            </h2>
+            <Link
+              to="/roadmap"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-dashed border-primary px-4 text-sm font-semibold text-primary transition-colors hover:bg-secondary"
+            >
+              <ListChecks className="h-4 w-4" /> Topic checklist <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <ToolCard
+              icon={<FileText className="h-4 w-4" />}
+              title="Study Sheets"
+              line={history[0] ? `Last: ${history[0].topic}` : "No sheets saved yet"}
+              progress={pct(sheetsThisWeek.length, WEEKLY_SHEET_GOAL)}
+              queue={`${sheetsThisWeek.length} of ${WEEKLY_SHEET_GOAL} this week`}
+              secondary={{ label: "Library", to: "/library" }}
+              primary={{ label: "New sheet", to: "/sheets" }}
+            />
+            <ToolCard
+              icon={<Layers className="h-4 w-4" />}
+              title="Flashcards"
+              line={`${reviewedToday} studied today`}
+              progress={pct(reviewedToday, reviewedToday + dueNow)}
+              queue={deck.total === 0 ? "No flashcards yet" : `${dueNow} cards waiting today · ${deck.total} in your deck`}
+              secondary={{ label: "New deck", to: "/flashcards" }}
+              primary={{ label: dueNow > 0 ? "Review" : "Open", to: "/flashcards" }}
+            />
+            <ToolCard
+              icon={<FlaskConical className="h-4 w-4" />}
+              title="QBank"
+              line={lastSet ? `Set you left off: ${lastSet.topic ?? lastSet.system}` : "No set in progress"}
+              progress={lastSet ? pct(lastSet.answered_count, lastSetTotal) : 0}
+              queue={
+                lastSet
+                  ? `${lastSet.answered_count} of ${lastSetTotal} answered · ${formatRelative(lastSet.last_activity_at)}`
+                  : isGuest
+                  ? "Sign in to practise USMLE-style questions"
+                  : "Name a topic to start a set"
+              }
+              secondary={{ label: "New set", to: "/qbank" }}
+              primary={
+                lastSet
+                  ? { label: "Resume", to: `/qbank/session?session=${lastSet.id}` }
+                  : { label: "Start", to: "/qbank" }
+              }
+            />
+          </div>
+        </section>
+      </div>
+
+      <Dialog open={detail !== null} onOpenChange={(open) => !open && setDetail(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          {detail === "sheets" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Sheets saved in the last {WINDOW_DAYS} days</DialogTitle>
+                <DialogDescription>
+                  {sheetsThisWeek.length} of your weekly goal of {WEEKLY_SHEET_GOAL}.
+                </DialogDescription>
+              </DialogHeader>
+              {sheetsThisWeek.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No sheets saved this week yet.</p>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {sheetsThisWeek.map((h) => (
+                    <li key={h.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                      <span className="min-w-0 truncate text-foreground">{h.topic}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {new Date(h.timestamp).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate("/library")}
+                className="mt-2 h-11 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+              >
+                Open your Library
+              </button>
+            </>
+          )}
+
+          {detail === "flashcards" && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Flashcards</DialogTitle>
+                <DialogDescription>
+                  {deck.total} cards in your deck · {deck.mastered} mastered · {dueNow} due today
+                </DialogDescription>
+              </DialogHeader>
+              {isGuest ? (
+                <p className="text-sm text-muted-foreground">Sign in to see your review history.</p>
+              ) : stats && stats.reviewsThisWeek > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-foreground">
+                    {stats.reviewsThisWeek} reviews in the last {WINDOW_DAYS} days
+                    {stats.retention !== null && ` · ${stats.retention}% remembered (30 days)`}
+                  </p>
+                  {RATING_ROWS.map((row) => (
+                    <Bar
+                      key={row.key}
+                      label={row.label}
+                      value={stats.reviewsByRating[row.key]}
+                      total={stats.reviewsThisWeek}
+                      tone={row.tone}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No reviews this week yet.</p>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate("/flashcards")}
+                className="mt-2 h-11 w-full rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+              >
+                {dueNow > 0 ? `Review ${dueNow} cards` : "Open Flashcards"}
+              </button>
+            </>
+          )}
+
+          {detail === "qbank" && qbank && (
+            <>
+              <DialogHeader>
+                <DialogTitle>QBank — last {WINDOW_DAYS} days</DialogTitle>
+                <DialogDescription>
+                  {qbank.answered} questions answered · {qbank.correct} correct ({accuracy}%)
+                </DialogDescription>
+              </DialogHeader>
+              {qbank.answered > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Correct, by difficulty
+                  </p>
+                  {DIFFICULTY_ROWS.map((row) => (
+                    <Bar
+                      key={row.key}
+                      label={row.key}
+                      value={qbank.byDifficulty[row.key].correct}
+                      total={qbank.byDifficulty[row.key].answered}
+                      tone={row.tone}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="mt-2 space-y-3">
+                <QBankHistory />
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
     </DashboardLayout>
-    </>
   );
 }
 

@@ -93,7 +93,7 @@ import {
   SectionFooter,
 } from "@/components/sheet/personal/PersonalItem";
 import { HighlightMenu, SelectionToolbar, type AiChoice } from "@/components/sheet/personal/SelectionToolbar";
-import { LayerBar } from "@/components/sheet/personal/LayerBar";
+import { LayerBar, LayerUpsell } from "@/components/sheet/personal/LayerBar";
 
 type EnhanceKind = "enhance" | "expand" | "clinical";
 
@@ -287,6 +287,8 @@ interface OutputSectionProps {
   citationIsLoggedIn?: boolean;
   /** Which model wrote the sheet, from the response headers. */
   modelUsed?: ModelUsed | null;
+  /** The sheet's saved id when it is already in the Library, so its Save button reads "Saved". */
+  savedId?: string | null;
   isPro?: boolean;
   userId?: string | null;
   isAnonymous?: boolean;
@@ -1688,6 +1690,7 @@ const OutputSectionBody = ({
   onCitationLockedClick,
   citationIsLoggedIn,
   modelUsed,
+  savedId,
   isPro = false,
   userId,
   isAnonymous,
@@ -2036,7 +2039,7 @@ const OutputSectionBody = ({
       <div ref={ref} className="print-document space-y-4">
         <div className="animate-fade-in flex items-center justify-between">
           {modeInfo && <ModeInfoBar modeInfo={modeInfo} />}
-          <SaveButton input={inputText || ""} output={output} modeInfo={modeInfo} />
+          <SaveButton input={inputText || ""} output={output} modeInfo={modeInfo} savedId={savedId} />
         </div>
 
         {sections.map(({ title, content }, idx) => {
@@ -2294,6 +2297,7 @@ const OutputSectionBody = ({
             output={output}
             modeInfo={modeInfo}
             disabled={isStreaming}
+            savedId={savedId}
           />
         </div>
       ) : (
@@ -2483,7 +2487,10 @@ const OutputSectionBody = ({
               ) : key === "flashcards" ? (
                 <>
                   {deck && deck.count > 0 && <DeckOffer deck={deck} />}
-                  <FlashcardsSection cards={[...(sheet.flashcards ?? []), ...myCards]} />
+                  {/* With a deck on offer and no inline cards, the offer says it all. */}
+                  {((sheet.flashcards?.length ?? 0) + myCards.length > 0 || !(deck && deck.count > 0)) && (
+                    <FlashcardsSection cards={[...(sheet.flashcards ?? []), ...myCards]} />
+                  )}
                 </>
               ) : key !== "referenceNote" && spec.kind === "prose" ? (
                 <div className="text-sm text-muted-foreground leading-relaxed">
@@ -2575,6 +2582,8 @@ const OutputSectionBody = ({
       {ANATOMY_MODE === "auto" && !isStreaming && inputText?.trim() ? (
         <AnatomySection topic={inputText} />
       ) : null}
+
+      {p && !isStreaming && <LayerUpsell />}
 
       {/* The last line of the document, under its Sources. */}
       {renderDisclaimer(disclaimerCollapsed, toggleDisclaimer)}

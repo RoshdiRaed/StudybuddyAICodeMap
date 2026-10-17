@@ -1375,4 +1375,6 @@ ${SYSTEM_KEYS.map((k) => `- ${k}: ${SYSTEM_NAMES[k]}`).join("\n")}
 
 Return ONE JSON object: {"system": "<key>", "confidence": <0-1>}
 
-Use the key exactly as written above. Pick the system whose content outline the topic primarily belongs to, not one it merely touches — a topic about anaemia of chronic kidney disease is heme_onc if it is about the anaemia and renal if it is about the kidney. If the topic is too vague to place, return the closest system with a low confidence rather than refusing.`;
+Use the key exactly as written above. Pick the system whose content outline the topic primarily belongs to, not one it merely touches — a topic about anaemia of chronic kidney disease is heme_onc if it is about the anaemia and renal if it is about the kidney. If the topic is too vague to place, return the closest system with a low confidence rather than refusing.
+
+If the input is not a medical, clinical or health-science topic at all — random letters, a made-up or meaningless word, or a request unrelated to medicine — return {"system": "not_medical", "confidence": 1}. Real but unusual medical terms, abbreviations (MI, DKA), eponyms, drugs, misspellings of real terms and topics in any language are medical.`;

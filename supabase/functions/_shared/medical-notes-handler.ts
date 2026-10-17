@@ -632,6 +632,8 @@ export async function handleMedicalNotes(req: Request): Promise<Response> {
      */
     const prepare = async (emit: (meta: Record<string, unknown>) => void) => {
       const planned = archetypePromise.then((archetype) => {
+        // Not a medical topic: no plan, no writer — the stream says so instead.
+        if (isSheetMode && archetype.notMedical) throw new NotMedicalTopicError();
         // The sections this sheet gets: archetype chooses the spine, exam mode
         // and difficulty add to it. Depth does not change them — it decides
         // whether the page grows branches afterwards — so it travels beside the plan.
@@ -1252,6 +1254,12 @@ export async function handleMedicalNotes(req: Request): Promise<Response> {
           }
           close();
         } catch (e) {
+          if (e instanceof NotMedicalTopicError) {
+            log("topic_declined", { elapsedMs: since(startedAt) });
+            await refund();
+            fail(NOT_MEDICAL_MESSAGE);
+            return;
+          }
           const message = e instanceof Error ? e.message : String(e);
           log("error", { error: message, elapsedMs: since(startedAt) });
           // Nothing reached the student: the day's sheet goes back.
@@ -1279,6 +1287,16 @@ export async function handleMedicalNotes(req: Request): Promise<Response> {
     log("error", { error: message, elapsedMs: since(startedAt) });
     // The detail is in the log; the page gets something it can say.
     return json({ error: "Something went wrong. Please try again." }, 500);
+  }
+}
+
+const NOT_MEDICAL_MESSAGE =
+  "That doesn't look like a medical topic. Try something like “heart failure” or “DKA”.";
+
+/** Thrown from a sheet's preparation when the classifier declines the topic. */
+class NotMedicalTopicError extends Error {
+  constructor() {
+    super("not_medical_topic");
   }
 }
 

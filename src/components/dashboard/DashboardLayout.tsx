@@ -1,7 +1,9 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import AppNav from "@/components/dashboard/AppNav";
 import AuthModal from "@/components/AuthModal";
 import AccountDashboard from "@/components/AccountDashboard";
+import { useAuth } from "@/hooks/use-auth";
 import { useBackdropScene } from "@/components/backdrop/backdrop-scene";
 
 interface DashboardLayoutProps {
@@ -11,6 +13,17 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children, wide = false }: DashboardLayoutProps) => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isAnonymous, loading } = useAuth();
+  // The landing page's "Sign in" links here with ?signin=1. Someone already
+  // signed in just lands on the dashboard.
+  useEffect(() => {
+    if (loading || searchParams.get("signin") !== "1") return;
+    if (!user || isAnonymous) setAuthModalOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("signin");
+    setSearchParams(next, { replace: true });
+  }, [loading, user, isAnonymous, searchParams, setSearchParams]);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   // Every app page gets the living backdrop; a page with its own scene (a
   // sheet, a QBank session) outranks this calm default.

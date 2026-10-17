@@ -110,15 +110,12 @@ export const FilmSection = forwardRef<FilmHandle, FilmSectionProps>(function Fil
         <header className="film-head">
           <span className="eyebrow eyebrow-dark film-eyebrow">
             <span className="eyebrow-dot" aria-hidden="true" />
-            The film · {clock(DURATION)}
+            Demo · {clock(DURATION)}
           </span>
           <h2 id="film-title">
-            From <em>2&nbsp;a.m.</em> to exam&#8209;ready.
+            Less time preparing to study. <em>More time actually studying.</em>
           </h2>
-          <p>
-            One topic becomes a study sheet, a question bank and a review schedule. Watch the whole loop in two and a
-            half minutes — or jump to the part you came for.
-          </p>
+          <p>See the idea behind StudyBuddy AI — or jump to the part you came for.</p>
         </header>
 
         <div className="film-frame" data-started={started ? "" : undefined}>

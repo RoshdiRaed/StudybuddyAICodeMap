@@ -335,8 +335,20 @@ describe("runQbankGeneration", () => {
     const outcome = await runQbankGeneration({ ...baseOpts(), target: 10, call });
 
     expect(outcome.status).toBe("failed");
-    expect(outcome.error).toMatch(/out of date/i);
+    expect(outcome.error).toMatch(/can't be written right now/i);
     expect(calls).toHaveLength(1);
+  });
+
+  it("retries a later wave that loses its closing frame instead of blaming the server", async () => {
+    // Wave one closed properly, so the server is current. Wave two ending
+    // without its frame is a stream that died, not an out-of-date function.
+    const { call, calls } = fakeCall([{ delivers: 4 }, { delivers: 0, legacy: true }, { delivers: 1 }]);
+
+    const outcome = await runQbankGeneration({ ...baseOpts(), target: 5, call });
+
+    expect(outcome.status).toBe("complete");
+    expect(outcome.delivered).toBe(5);
+    expect(calls).toHaveLength(3);
   });
 
   it("names the database rather than the topic when nothing can be saved", async () => {

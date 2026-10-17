@@ -50,6 +50,9 @@ const MAX_INPUT_CHARS = 600;
  */
 const MAX_OUTPUT_TOKENS = 16;
 
+/** The classifier's answer for input that is not a medical topic at all. */
+const NOT_MEDICAL = "not_medical";
+
 const SYSTEM_PROMPT = `You classify a medical study topic into exactly one category.
 
 Categories:
@@ -57,10 +60,19 @@ ${ARCHETYPE_IDS.map((id) => `- ${id}: ${ARCHETYPES[id].hint}`).join("\n")}
 
 Reply with the category name and nothing else — one word, lower case, no punctuation, no explanation.
 If the topic spans more than one category, choose the one the student most needs the material organised around.
+If the input is not a medical, clinical or health-science topic at all — random letters, a made-up or meaningless word, or a request unrelated to medicine — reply: ${NOT_MEDICAL}
+Real but unusual medical terms, abbreviations (MI, DKA, HFpEF), eponyms, drugs, misspellings of real terms and topics in any language are medical.
 If nothing fits, reply: condition`;
 
 export interface ArchetypeResult {
   archetype: ArchetypeId | null;
+  /**
+   * The classifier judged the input not to be a medical topic ("kkkk",
+   * "banana bread"). The handler declines the sheet rather than have the
+   * writer invent one — the same contract a standalone deck has
+   * (topic-decline.ts). A failed call never sets it: the classifier fails open.
+   */
+  notMedical?: boolean;
   ms: number;
   /** Why it fell back, for the logs. Null on success. */
   error: string | null;
@@ -80,7 +92,7 @@ export async function classifyArchetype(notes: string): Promise<ArchetypeResult>
   const startedAt = Date.now();
   const model = asCortiModel(Deno.env.get("CORTI_ARCHETYPE_MODEL"), DEFAULT_ARCHETYPE_MODEL);
   const first = await classifyOnce(model, notes);
-  if (first.archetype) return { ...first, ms: Date.now() - startedAt };
+  if (first.archetype || first.notMedical) return { ...first, ms: Date.now() - startedAt };
   const second = await classifyOnce(model, notes);
   return {
     archetype: second.archetype,
@@ -120,7 +132,11 @@ async function classifyOnce(model: CortiModel, notes: string): Promise<Archetype
 
     const body = await response.json();
     const choice = body?.choices?.[0];
-    const archetype = asArchetype(choice?.message?.content);
+    const content = choice?.message?.content;
+    if (typeof content === "string" && content.trim().toLowerCase().replace(/[^a-z_]/g, "") === NOT_MEDICAL) {
+      return { archetype: null, notMedical: true, ms: Date.now() - startedAt, error: null };
+    }
+    const archetype = asArchetype(content);
     // Out of budget before a recognisable word is a different failure from
     // "the model answered something odd", so the logs name it separately.
     const error = archetype

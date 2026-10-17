@@ -183,7 +183,13 @@ interface WaveResult {
   streamError: string | null;
   /** Non-retryable. Ends the whole run rather than the wave. */
   fatal: string | null;
+  /** The wave closed with a waveComplete frame — proof the server speaks this protocol. */
+  completed: boolean;
 }
+
+/** Shown when the server cannot write this set at all; the cause goes to the console. */
+const GENERATOR_UNAVAILABLE =
+  "Questions can't be written right now. Please try again in a few minutes.";
 
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve) => {
@@ -213,7 +219,9 @@ async function runWave(
     challenge?: string;
     examMode?: string;
   },
-  opts: RunGenerationOptions
+  opts: RunGenerationOptions,
+  /** An earlier wave of this set closed properly, so the server is current. */
+  serverProven = false
 ): Promise<WaveResult> {
   const call = opts.call ?? callQbankGenerate;
   const result: WaveResult = {
@@ -225,6 +233,7 @@ async function runWave(
     systemName: null,
     streamError: null,
     fatal: null,
+    completed: false,
   };
 
   // A stall watchdog layered over the caller's signal, so a hung upstream ends
@@ -264,9 +273,10 @@ async function runWave(
     if (!response.ok || !response.body) {
       const body = await response.json().catch(() => null);
       const message = body?.error ?? `Generation failed (${response.status})`;
-      // 401 and 400 will fail identically however many times they are retried:
-      // an expired token or a malformed request is not a transient condition.
-      if (response.status === 401 || response.status === 400) result.fatal = message;
+      // 401, 400 and 422 will fail identically however many times they are
+      // retried: an expired token, a malformed request or a topic the router
+      // declined as not medical is not a transient condition.
+      if (response.status === 401 || response.status === 400 || response.status === 422) result.fatal = message;
       result.streamError = message;
       return result;
     }
@@ -417,11 +427,19 @@ async function runWave(
    * Gated on the stream having ended cleanly: a dropped connection also loses
    * this frame, and that genuinely is a wave worth retrying.
    */
+  // Only before any wave has proved otherwise: once one wave of this set has
+  // closed properly the server is current, and a later wave missing its frame
+  // is a stream that ended early — retried like any other, not a dead end.
   if (!result.streamError && !sawWaveComplete) {
-    result.fatal =
-      "The question generator on the server is out of date. Deploy the qbank-generate function and try again.";
+    if (serverProven) {
+      result.streamError = "The connection ended before the questions finished.";
+      return result;
+    }
+    console.error("qbank-generate: stream ended without a waveComplete frame — the deployed function is out of date.");
+    result.fatal = GENERATOR_UNAVAILABLE;
     return result;
   }
+  result.completed = sawWaveComplete;
 
   // The closing summary is the frame most likely to be missing after a dropped
   // stream, so fall back to the subtopics the client parsed for itself. Without
@@ -459,6 +477,8 @@ export async function runQbankGeneration(
   let systemName: string | null = null;
   let lastError: string | null = null;
   const covered = new Set<string>(opts.alreadyCovered ?? []);
+  // A resumed set was routed by a server that already spoke this protocol.
+  let serverProven = opts.system != null;
 
   while (delivered < target) {
     if (opts.signal.aborted) {
@@ -486,7 +506,8 @@ export async function runQbankGeneration(
             challenge: opts.challenge,
             examMode: opts.examMode,
           },
-          opts
+          opts,
+          serverProven
         );
       } catch (err) {
         if (isAbort(err)) {
@@ -517,6 +538,7 @@ export async function runQbankGeneration(
       continue;
     }
 
+    if (wave.completed) serverProven = true;
     system = wave.system ?? system;
     systemName = wave.systemName ?? systemName;
     if (wave.streamError) lastError = wave.streamError;
