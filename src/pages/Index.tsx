@@ -14,6 +14,7 @@ import {
   Mail,
   Menu,
   Moon,
+  Play,
   Send,
   Shield,
   Smartphone,
@@ -28,6 +29,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveCarousel } from "@/components/ResponsiveCarousel";
+import { FilmSection, type FilmHandle } from "@/components/landing/FilmSection";
 import BrandMark from "@/components/brand/BrandMark";
 import "@/pages/index.css";
 const CONTACT_EMAIL = "mailto:osama200az@gmail.com";
@@ -290,6 +292,7 @@ function App() {
   }, [isDark]);
 
   const startStudying = () => navigate("/dashboard?start=sheet");
+  const filmRef = useRef<FilmHandle>(null);
   const closeMenu = () => setMenuOpen(false);
 
   return (
@@ -341,7 +344,18 @@ function App() {
                 <p className="hero-lede">StudyBuddy turns your curriculum into AI-powered sheets, questions, and explanations — so every study hour compounds. Built by an MD for medical students across MENA.</p>
                 <div className="hero-actions">
                   <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-hero-start">Start free — no card required <ArrowRight size={18} /></ButtonLink>
-                  <a href="#playground" className="button button-ghost" data-testid="link-hero-how-it-works">See how it works <ChevronDown size={17} /></a>
+                  <a
+                    href="#film"
+                    className="button button-ghost"
+                    data-testid="link-hero-watch-film"
+                    onClick={(event) => {
+                      if (!filmRef.current) return;
+                      event.preventDefault();
+                      filmRef.current.playFromTop();
+                    }}
+                  >
+                    <Play size={15} fill="currentColor" strokeWidth={0} /> Watch the film · 2:34
+                  </a>
                 </div>
               </Reveal>
             </div>
@@ -370,6 +384,8 @@ function App() {
         <div className="subject-ticker" aria-hidden="true">
           <div className="ticker-track"><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span><i>·</i><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span></div>
         </div>
+
+        <FilmSection ref={filmRef} onStart={startStudying} />
 
         <section id="playground" className="section section-how">
           <div className="container">

@@ -478,3 +478,248 @@ h1, h2, h3 { letter-spacing: -0.035em; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .reveal { opacity: 1 !important; transform: none !important; }
 }
+/* ─── The film ────────────────────────────────────────────────────────────
+   A dark stage in both themes, as a screen is: it continues the film's own
+   opening frame (deep teal-navy, teal starlight) rather than the page. */
+.film-section {
+  --film-bg: #0f1b22;
+  --film-fg: #f3f0e8;
+  --film-muted: rgba(243, 240, 232, .62);
+  --film-faint: rgba(243, 240, 232, .42);
+  --film-teal: #4fd1c5;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 112px 0 104px;
+  color: var(--film-fg);
+  background:
+    radial-gradient(900px 520px at 18% -8%, rgba(79, 209, 197, .13), transparent 62%),
+    radial-gradient(760px 480px at 92% 108%, rgba(79, 209, 197, .08), transparent 60%),
+    linear-gradient(180deg, #0d171d, var(--film-bg) 30%, #101e26);
+  border-block: 1px solid rgba(79, 209, 197, .12);
+}
+.film-stars {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .55;
+  background-image:
+    radial-gradient(1.4px 1.4px at 24px 36px, rgba(79, 209, 197, .9), transparent 60%),
+    radial-gradient(1px 1px at 120px 90px, rgba(243, 240, 232, .7), transparent 60%),
+    radial-gradient(1.8px 1.8px at 180px 20px, rgba(79, 209, 197, .6), transparent 60%),
+    radial-gradient(1px 1px at 64px 150px, rgba(243, 240, 232, .5), transparent 60%),
+    radial-gradient(1.3px 1.3px at 210px 140px, rgba(79, 209, 197, .7), transparent 60%);
+  background-size: 240px 180px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 20%, transparent 75%);
+  animation: film-drift 90s linear infinite;
+}
+@keyframes film-drift { to { background-position: 240px -180px; } }
+
+.film-inner { position: relative; }
+.film-head { max-width: 720px; margin-inline: auto; text-align: center; }
+.film-eyebrow { color: var(--film-muted); border-color: rgba(243, 240, 232, .2); background: rgba(243, 240, 232, .04); }
+.film-eyebrow .eyebrow-dot { background: var(--film-teal); box-shadow: 0 0 0 4px rgba(79, 209, 197, .16); }
+.film-head h2 {
+  margin: 22px 0 0;
+  font: 500 clamp(36px, 5.2vw, 62px)/1.04 var(--app-font-serif);
+  letter-spacing: -.045em;
+  color: var(--film-fg);
+}
+.film-head h2 em { font-style: italic; color: var(--film-teal); }
+.film-head p { max-width: 560px; margin: 18px auto 0; color: var(--film-muted); font-size: 15.5px; line-height: 1.7; }
+
+.film-frame {
+  position: relative;
+  margin-top: 52px;
+  aspect-ratio: 16 / 9;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--film-bg);
+  box-shadow:
+    0 0 0 1px rgba(79, 209, 197, .2),
+    0 44px 120px -36px rgba(0, 0, 0, .8),
+    0 0 140px -30px rgba(79, 209, 197, .22);
+}
+.film-video { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--film-bg); }
+
+.film-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: clamp(18px, 4.6%, 48px);
+  border: 0;
+  cursor: pointer;
+  text-align: start;
+  color: var(--film-fg);
+  /* Only the bottom edge is shaded: the poster's own headline stays untouched. */
+  background: linear-gradient(180deg, transparent 58%, rgba(8, 15, 20, .55));
+}
+.film-play:focus-visible { outline: none; }
+.film-play-cta { display: inline-flex; align-items: center; gap: 18px; }
+.film-play-disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 74px;
+  height: 74px;
+  padding-inline-start: 4px; /* optical centre of the triangle */
+  border-radius: 50%;
+  color: var(--film-bg);
+  background: rgba(243, 240, 232, .96);
+  box-shadow: 0 0 0 9px rgba(79, 209, 197, .16), 0 16px 44px rgba(0, 0, 0, .45);
+  transition: transform .35s cubic-bezier(.22, .7, .25, 1), box-shadow .35s ease;
+}
+.film-play-disc::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 1px solid rgba(79, 209, 197, .6);
+  animation: film-ring 2.6s cubic-bezier(.22, .7, .25, 1) infinite;
+}
+@keyframes film-ring { from { transform: scale(.92); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+.film-play:hover .film-play-disc,
+.film-play:focus-visible .film-play-disc {
+  transform: scale(1.07);
+  box-shadow: 0 0 0 12px rgba(79, 209, 197, .24), 0 20px 54px rgba(0, 0, 0, .5);
+}
+.film-play:focus-visible .film-play-disc { outline: 2px solid var(--film-teal); outline-offset: 14px; }
+.film-play-text { display: flex; flex-direction: column; gap: 6px; }
+.film-play-title { font: 500 clamp(20px, 2.2vw, 28px)/1.1 var(--app-font-serif); letter-spacing: -.02em; }
+.film-play-sub {
+  color: rgba(243, 240, 232, .7);
+  font: 500 10.5px var(--app-font-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+/* The end card: over the film's last frame, a real way in. */
+.film-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(13, 23, 29, .8);
+  backdrop-filter: blur(6px);
+  animation: film-fade .5s ease both;
+}
+@keyframes film-fade { from { opacity: 0; } }
+.film-end-title { margin: 0; font: 500 clamp(24px, 3.4vw, 40px)/1.12 var(--app-font-serif); letter-spacing: -.035em; color: var(--film-fg); }
+.film-end-title em { font-style: italic; color: var(--film-teal); }
+.film-end-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.film-end-primary { background: var(--film-fg); color: var(--film-bg); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
+.film-end-ghost { color: var(--film-fg); background: transparent; border-color: rgba(243, 240, 232, .3); }
+.film-end-ghost:hover { border-color: var(--film-teal); color: var(--film-teal); }
+.film-end .button:focus-visible { outline: 2px solid var(--film-teal); outline-offset: 3px; }
+
+/* Chapters: each one's width follows its share of the running time, on a
+   floor wide enough that a five-second chapter still has room for its name. */
+.film-rail {
+  --t: 0;
+  display: flex;
+  gap: 6px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.film-chapter { flex: calc(var(--d) + 26) 1 0; min-width: 0; }
+.film-chapter button {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 8px 0 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.film-chapter button:focus-visible { outline: 2px solid var(--film-teal); outline-offset: 4px; }
+.film-chapter-bar { display: block; height: 3px; overflow: hidden; border-radius: 3px; background: rgba(243, 240, 232, .16); transition: height .2s ease, background .2s ease; }
+.film-chapter-fill {
+  display: block;
+  height: 100%;
+  background: var(--film-teal);
+  transform-origin: left;
+  transform: scaleX(clamp(0, calc((var(--t) - var(--s)) / var(--d)), 1));
+}
+[dir="rtl"] .film-chapter-fill { transform-origin: right; }
+.film-chapter-meta { display: flex; flex-direction: column; gap: 3px; margin-top: 10px; }
+.film-chapter-time { font: 500 10px var(--app-font-mono); letter-spacing: .06em; color: var(--film-faint); transition: color .2s ease; }
+.film-chapter-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: rgba(243, 240, 232, .7);
+  transition: color .2s ease;
+}
+.film-chapter button:hover .film-chapter-bar,
+.film-chapter button:focus-visible .film-chapter-bar { height: 5px; background: rgba(243, 240, 232, .26); }
+.film-chapter button:hover .film-chapter-title,
+.film-chapter button:focus-visible .film-chapter-title,
+.film-chapter button[aria-current] .film-chapter-title { color: var(--film-fg); }
+.film-chapter button[aria-current] .film-chapter-time { color: var(--film-teal); }
+
+/* A still of the chapter, over its slot — pointer devices only. */
+.film-chapter-thumb {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  width: 192px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(79, 209, 197, .3), 0 16px 40px rgba(0, 0, 0, .5);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition: opacity .2s ease, transform .25s cubic-bezier(.22, .7, .25, 1);
+}
+@media (hover: hover) {
+  .film-chapter button:hover .film-chapter-thumb { opacity: 1; transform: translate(-50%, 0); }
+}
+.film-chapter:first-child .film-chapter-thumb { left: 0; transform: translate(0, 6px); }
+.film-chapter:last-child .film-chapter-thumb { left: auto; right: 0; transform: translate(0, 6px); }
+@media (hover: hover) {
+  .film-chapter:first-child button:hover .film-chapter-thumb,
+  .film-chapter:last-child button:hover .film-chapter-thumb { transform: translate(0, 0); }
+}
+
+@media (max-width: 720px) {
+  .film-section { padding: 76px 0 72px; }
+  .film-head p { font-size: 14.5px; }
+  .film-frame { margin-top: 36px; border-radius: 14px; }
+  .film-play-cta { gap: 12px; }
+  .film-play-disc { width: 52px; height: 52px; }
+  .film-play-sub { display: none; }
+  /* A swipeable row of equal chapters; widths by running time need room. */
+  .film-rail {
+    gap: 14px;
+    margin-inline: -20px; /* the container's gutter at this width */
+    padding: 0 20px 6px;
+    scroll-padding-inline: 20px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .film-rail::-webkit-scrollbar { display: none; }
+  .film-chapter { flex: 0 0 136px; scroll-snap-align: start; }
+  .film-chapter-thumb { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-stars, .film-play-disc::after { animation: none; }
+}
