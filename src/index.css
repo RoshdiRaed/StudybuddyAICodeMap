@@ -189,6 +189,16 @@
   }
 }
 
+/* The bar a deck shows while it is being written: one segment sweeping across. */
+@keyframes fc-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
 /* The trace a deep dive shows while it is being written: a heartbeat drawn
    across its tag, over and over. Still, as a flat line, for reduced motion. */
 @keyframes ecg-trace {

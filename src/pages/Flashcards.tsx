@@ -138,7 +138,10 @@ const Flashcards = () => {
   // The model behind the deck just generated, credited while that deck is studied.
   const [generatedDeck, setGeneratedDeck] = useState<{ topic: string; model: ModelUsed } | null>(null);
   const current = s.current;
-  const idle = !session && rightPhase === "idle";
+  // One column until a review session starts — generating included. Switching
+  // layouts remounts the generator, and a remount mid-request lost the topic
+  // and the deck being written: the page sat on "generating" for good.
+  const idle = !session;
 
   // Deck-level retrieval metadata (sources) for the card currently on screen,
   // not for the session as a whole: `session.topic` is "Today's review" or
@@ -418,58 +421,28 @@ const Flashcards = () => {
   // ── Right pane ────────────────────────────────────────────────────────
   const rightPaneContent =
     rightPhase === "generating" ? (
-      <div key="generating" className="pane-crossfade mx-auto w-full max-w-[560px] space-y-4">
-        {/* AI Generation Progress */}
-        <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-primary" />
-              </div>
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-serif font-semibold text-foreground">
-                AI is generating your flashcards
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {genTopic || "new"} flashcards…
-              </p>
-            </div>
-            {/* Progress steps */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1 text-primary font-medium">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                Analyzing
-              </span>
-              <ChevronRight className="w-3 h-3" />
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <div className="w-1.5 h-1.5 rounded-full bg-border" />
-                Creating
-              </span>
-              <ChevronRight className="w-3 h-3" />
-              <span className="flex items-center gap-1 text-muted-foreground">
-                <div className="w-1.5 h-1.5 rounded-full bg-border" />
-                Finalizing
-              </span>
-            </div>
+      // One slim panel under the button: what is being written, and that it is
+      // moving. No stack of placeholder cards pretending to be the deck.
+      <div
+        key="generating"
+        role="status"
+        aria-live="polite"
+        className="pane-crossfade flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm"
+      >
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <Sparkles className="h-5 w-5 text-primary" aria-hidden />
+          <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary motion-safe:animate-spin" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            Writing your {genTopic || "new"} deck
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Usually 20–40 seconds. Your review starts as soon as it's ready.
+          </p>
+          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-border" aria-hidden>
+            <div className="h-full w-1/3 rounded-full bg-primary motion-safe:animate-[fc-progress_1.4s_ease-in-out_infinite]" />
           </div>
-        </div>
-        
-        {/* Card skeletons */}
-        <div className="space-y-4">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="section-reveal rounded-xl border border-border bg-card h-48 p-5"
-              style={{ animationDelay: `${i * 150}ms` }}
-            >
-              <div className="skeleton-shimmer h-5 w-24 rounded-lg bg-border mb-3" />
-              <div className="skeleton-shimmer h-3.5 w-3/4 rounded bg-border mb-2" />
-              <div className="skeleton-shimmer h-3.5 w-2/3 rounded bg-border mb-2" />
-              <div className="skeleton-shimmer h-3.5 w-1/2 rounded bg-border" />
-            </div>
-          ))}
         </div>
       </div>
     ) : rightPhase === "reviewing" && session ? (
@@ -701,12 +674,6 @@ const Flashcards = () => {
       <div key="idle" className="pane-crossfade space-y-6">
         {totalDecks > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-serif font-semibold text-foreground">
-                My decks
-              </h3>
-              <span className="text-xs text-muted-foreground">{totalDecks} decks</span>
-            </div>
             <DeckList
               cards={recentDeckCards}
               onStudyDeck={handleStudyDeck}
@@ -813,7 +780,10 @@ const Flashcards = () => {
       </button>
       )}
 
-      {/* ── Tablet-only: slide-out left-pane drawer ── */}
+      {/* ── Tablet-only: slide-out left-pane drawer. Not in the one-column
+          layout, where the form is already on the page — a second copy would
+          be a second generator listening for the same requests. ── */}
+      {!idle && (
       <div
         className={`hidden md:max-lg:block fixed inset-0 z-50 ${
           configDrawerOpen ? "" : "pointer-events-none"
@@ -847,6 +817,7 @@ const Flashcards = () => {
           {leftPaneContent}
         </div>
       </div>
+      )}
 
       <SrsSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
 

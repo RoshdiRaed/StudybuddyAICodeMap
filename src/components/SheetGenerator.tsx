@@ -281,7 +281,7 @@ const SheetGenerator = ({ prefill }: SheetGeneratorProps) => {
     key: string;
     style: RegenStyle;
     instruction?: string;
-    anchored: number;
+    anchored: number; 
   } | null>(null);
   // Null until the server's __meta event arrives. Staying null means grounding
   // was never attempted, so the sheet keeps its pre-grounding appearance —
