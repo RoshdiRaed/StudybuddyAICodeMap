@@ -7,24 +7,26 @@
    global: they are inert custom properties until something reads them.
    ============================================================================= */
 
-@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400;1,6..72,500&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+/* The whole product sets in two families: DM Sans for every heading and
+   paragraph (weights 400/500/700), IBM Plex Mono for metadata only. */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 /* ---------- Root tokens --------------------------------------------------- */
 :root {
     /* Raw palette */
-    --paper: #F7F4EC;
-    --paper-2: #EFEAD9;
+    --paper: #F8F8F8;
+    --paper-2: #EFEFEF;
     --ink: #0E1116;
     --ink-2: #1C2128;
 
-    --stone-50:  #F2EEE3;
-    --stone-100: #E4DECE;
-    --stone-200: #CBC3AE;
-    --stone-300: #A9A088;
-    --stone-400: #7C7461;
-    --stone-500: #545042;
-    --stone-600: #3A3628;
-    --stone-700: #25231A;
+    --stone-50:  #F1F1F1;
+    --stone-100: #E3E3E3;
+    --stone-200: #C6C6C6;
+    --stone-300: #A1A1A1;
+    --stone-400: #737373;
+    --stone-500: #525252;
+    --stone-600: #383838;
+    --stone-700: #232323;
 
     --teal-700: #0A5656;
     --teal-600: #0D6E6E;
@@ -73,9 +75,9 @@
     --signal-on-inverse: #F8A3A3;
 
     /* Type */
-    --font-display: "Newsreader", "Source Serif Pro", Georgia, serif;
-    --font-sans: "Inter Tight", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --font-display: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
     --fs-display-xl: 72px;
     --fs-display-lg: 56px;

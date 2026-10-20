@@ -109,7 +109,6 @@ export const FilmSection = forwardRef<FilmHandle, FilmSectionProps>(function Fil
       <div className="container film-inner">
         <header className="film-head">
           <span className="eyebrow eyebrow-dark film-eyebrow">
-            <span className="eyebrow-dot" aria-hidden="true" />
             Demo · {clock(DURATION)}
           </span>
           <h2 id="film-title">

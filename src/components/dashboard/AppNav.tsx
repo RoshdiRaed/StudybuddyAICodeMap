@@ -30,9 +30,9 @@ interface AppNavProps {
   onOpenAccount: () => void;
 }
 
-const navItems = [
-  // Home is the student's dashboard; the brand goes back to the landing page.
-  { to: "/dashboard", label: "Home", icon: LayoutDashboard },
+const homeItem = { to: "/dashboard", label: "Home", icon: LayoutDashboard };
+
+const toolItems = [
   { to: "/roadmap", label: "Topics", icon: MapIcon },
   { to: "/sheets", label: "Sheets", icon: FileText },
   { to: "/flashcards", label: "Flashcards", icon: Layers },
@@ -45,6 +45,12 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const name = displayName(user);
+  const signedIn = !!user && !isAnonymous;
+  // Signed in, the brand is the way home: it opens the dashboard, so a separate
+  // Home link is noise. Guests keep Home, and the brand returns them to the
+  // landing page.
+  const navItems = signedIn ? toolItems : [homeItem, ...toolItems];
+  const brandTo = signedIn ? "/dashboard" : "/";
 
   const userId = user?.id ?? null;
   const profileQuery = useQuery({
@@ -95,8 +101,9 @@ const AppNav = ({ onNavigate, onOpenAuth, onOpenAccount }: AppNavProps) => {
         >
           {/* Brand */}
           <Link
-            to="/"
+            to={brandTo}
             onClick={handleNav}
+            aria-label={signedIn ? "StudyBuddy AI — go to dashboard" : "StudyBuddy AI — home"}
             className="flex items-center gap-2.5 shrink-0 no-underline"
             style={{ color: "var(--fg)" }}
           >

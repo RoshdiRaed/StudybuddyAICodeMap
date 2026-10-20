@@ -205,10 +205,7 @@ function Reveal({
 
 function Eyebrow({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
   return (
-    <span className={`eyebrow ${dark ? "eyebrow-dark" : ""}`}>
-      <span className="eyebrow-dot" aria-hidden="true" />
-      {children}
-    </span>
+    <span className={`eyebrow ${dark ? "eyebrow-dark" : ""}`}>{children}</span>
   );
 }
 
@@ -375,7 +372,6 @@ function App() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <Reveal>
-                <Eyebrow>{name ? <>Welcome back, {name}</> : <>For medical students · Step 1 &amp; Step 2-style practice</>}</Eyebrow>
                 <h1>Your next topic. <em>Understood,</em> remembered, tested.</h1>
                 <p className="hero-lede">Build your understanding with AI-powered Study Sheets, go deeper where you need clarity, and put your knowledge into practice with Flashcards and a USMLE-style QBank.</p>
                 <div className="hero-actions">

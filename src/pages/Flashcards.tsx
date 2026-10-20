@@ -11,6 +11,7 @@ import { ModelCredit } from "@/components/PoweredByCorti";
 import type { ModelUsed } from "@/lib/model-used";
 import RatingButtons from "@/components/flashcards/RatingButtons";
 import SrsSettingsDialog from "@/components/flashcards/SrsSettings";
+import FlashcardsIntro from "@/components/flashcards/FlashcardsIntro";
 import { useFlashcardDeck, makeCardId, useDeckGrounding, type Card as DeckCard } from "@/hooks/use-flashcard-deck";
 import { useRatingKeys, useStudySession } from "@/hooks/use-study-session";
 import { useToast } from "@/hooks/use-toast";
@@ -18,42 +19,6 @@ import { shouldSuggestOptimize } from "@/lib/fsrs-items";
 import { formatInterval, newSrsFields, type ReviewRating } from "@/lib/spaced-repetition";
 
 const RECENT_DECK_LIMIT = 5;
-
-// The flow, as a rail rather than three explainer cards: it says the same
-// thing in one line, and because it tracks where the reader actually is it
-// stays useful after the first visit instead of becoming furniture.
-const STEPS = ["Pick a topic", "Shape the deck", "Review on schedule"] as const;
-
-const StepRail = ({ current }: { current: number }) => (
-  <ol aria-label="Steps" className="flex flex-wrap items-center gap-x-1 gap-y-2">
-    {STEPS.map((label, i) => {
-      const state = i < current ? "done" : i === current ? "active" : "todo";
-      return (
-        <li
-          key={label}
-          aria-current={state === "active" ? "step" : undefined}
-          className={`inline-flex items-center gap-2 rounded-full py-1 pe-4 ps-1 text-sm font-medium transition-colors duration-300 ${
-            state === "active" ? "bg-ring/10 text-[color:var(--color-accent-ink)]" : "text-foreground"
-          }`}
-        >
-          <span
-            className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold tabular-nums transition-colors duration-300 ${
-              state === "active"
-                ? "bg-[color:var(--color-accent-ink)] text-[color:var(--color-accent-foreground)]"
-                : state === "done"
-                ? "bg-ring/15 text-[color:var(--color-accent-ink)]"
-                : "border border-border bg-card text-muted-foreground"
-            }`}
-          >
-            {state === "done" ? <Check className="h-3.5 w-3.5" aria-label="Done" /> : i + 1}
-          </span>
-          {label}
-        </li>
-      );
-    })}
-  </ol>
-);
-
 
 type RightPhase = "idle" | "generating" | "reviewing";
 
@@ -120,8 +85,6 @@ const Flashcards = () => {
   // Reviewing cards is answering: the backdrop all but stops while it happens.
   useBackdropScene(rightPhase === "reviewing" ? { mode: "focus" } : null);
   const [genTopic, setGenTopic] = useState("");
-  // The topic as typed in the generator, for the step rail only.
-  const [draftTopic, setDraftTopic] = useState("");
   const [configDrawerOpen, setConfigDrawerOpen] = useState(false);
   // Desktop (lg+) left pane. Starts open; the reader collapses it once a deck
   // is on screen and the review pane takes the reclaimed width.
@@ -412,7 +375,6 @@ const Flashcards = () => {
       <FlashcardsGenerator
         onGeneratingChange={handleGeneratingChange}
         onGenerated={handleGenerated}
-        onTopicChange={setDraftTopic}
         wide={idle}
       />
     </div>
@@ -699,7 +661,7 @@ const Flashcards = () => {
   return (
     <DashboardLayout wide>
       <div className="space-y-6">
-        <div className="mb-6">
+        <div>
           <p className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase text-[color:var(--color-accent-ink)] mb-3">
             Flashcards · Spaced repetition
           </p>
@@ -707,13 +669,10 @@ const Flashcards = () => {
             Study any topic,{" "}
             <span className="italic text-[color:var(--color-accent-ink)]">lock it in.</span>
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Enter any medical topic — a deck of vignette cards is written for it,
-            then scheduled so you see each one just before it slips.
-          </p>
+          <div className="mt-3">
+            <FlashcardsIntro />
+          </div>
         </div>
-
-        <StepRail current={session || rightPhase === "generating" ? 2 : draftTopic.trim() ? 1 : 0} />
 
         {idle ? (
           // Nothing under way: one column with the full width — the topic and
