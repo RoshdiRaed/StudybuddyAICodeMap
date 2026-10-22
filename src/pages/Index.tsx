@@ -372,7 +372,7 @@ function App() {
           <div className="container hero-grid">
             <div className="hero-copy">
               <Reveal>
-                <h1>Your next topic. <em>Understood,</em> remembered, tested.</h1>
+                <h1>Study smarter.<br />Score <em>higher.</em> Pass.</h1>
                 <p className="hero-lede">Build your understanding with AI-powered Study Sheets, go deeper where you need clarity, and put your knowledge into practice with Flashcards and a USMLE-style QBank.</p>
                 <div className="hero-actions">
                   <ButtonLink href="/dashboard?start=sheet" onClick={startStudying} testId="button-hero-early-access">Get early access <ArrowRight size={18} /></ButtonLink>
@@ -389,6 +389,10 @@ function App() {
             </Reveal>
           </div>
         </section>
+
+        <div className="subject-ticker" aria-hidden="true">
+          <div className="ticker-track"><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span><i>·</i><span>Cardiology</span><i>·</i><span>Pharmacology</span><i>·</i><span>Pathology</span><i>·</i><span>Microbiology</span><i>·</i><span>Surgery</span><i>·</i><span>Anatomy</span></div>
+        </div>
 
         <section id="tools" className="section tools-section">
           <div className="container">

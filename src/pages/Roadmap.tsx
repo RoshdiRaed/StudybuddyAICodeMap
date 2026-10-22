@@ -184,7 +184,7 @@ const Roadmap = () => {
       <div className="ds-stack">
         <header>
           <p className="ds-label ds-label-accent">Curriculum checklist</p>
-          <h1 className="ds-display mt-2">Topics</h1>
+          <h1 className="ds-display mt-2">Roadmap</h1>
           <p className="ds-subtitle mt-2.5 max-w-[54ch]">
             Every topic in the curriculum, by system — and which ones you've
             already covered.
